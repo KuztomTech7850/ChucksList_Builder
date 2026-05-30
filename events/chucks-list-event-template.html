@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="Text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="format-detection" content="telephone=no">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <Title>Chuck's List Events</Title>
+  <style type="Text/css">
+    /*
+      CHUCK'S LIST EVENTS - PRODUCTION TEMPLATE
+      Art direction: Mesa Verde / Montezuma County / Four Corners
+      Goal: extremely readable, email-safe, light/dark compatible, elderly friendly
+      Structure: fixed header/footer, generic body, fixed Section groups
+    */
+
+    /* ---------- Base reset ---------- */
+    body, table, td, p, a {
+      margin: 0;
+      padding: 0;
+      -webkit-Text-size-adjust: 100% !important;
+      -ms-Text-size-adjust: 100% !important;
+      Text-size-adjust: 100% !important;
+    }
+
+    table {
+      border-collapse: collapse;
+    }
+
+    img {
+      border: 0;
+      outline: none;
+      Text-decoration: none;
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+
+    /* ---------- Color system ---------- */
+    body {
+      background-color: #f5efe4;
+      color: #221d17;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    a {
+      color: #b66324;
+      Text-decoration: underline;
+    }
+
+    .wrapper {
+      width: 100%;
+      background-color: #f5efe4;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 720px;
+      background-color: #fdf9f3;
+      border: 1px solid #d9cfc0;
+    }
+
+    .preheader {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 14px;
+      line-height: 22px;
+      color: #665b50;
+    }
+
+    .header-band,
+    .footer-band {
+      background-color: #2b3d2e;
+    }
+
+    .header-band {
+      border-bottom: 4px solid #b66324;
+    }
+
+    .footer-band {
+      border-top: 3px solid #b66324;
+    }
+
+    .eyebrow {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12px;
+      line-height: 18px;
+      Text-transform: uppercase;
+      letter-spacing: 1.6px;
+      font-weight: bold;
+      color: #b8c3ab;
+    }
+
+    .headline {
+      font-family: Georgia, 'Times New Roman', Times, serif;
+      font-size: 28px;
+      line-height: 36px;
+      font-weight: bold;
+      color: #f5efe4;
+    }
+
+    .header-body-copy {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 18px;
+      line-height: 28px;
+      color: #d7cec0;
+    }
+
+    .Section-label {
+      background-color: #3d6b72;
+      border-top: 1px solid #2e5259;
+      border-bottom: 1px solid #2e5259;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 13px;
+      line-height: 18px;
+      Text-transform: uppercase;
+      letter-spacing: 1.3px;
+      font-weight: bold;
+      color: #e8f3f4;
+    }
+
+    .row-white {
+      background-color: #fdf9f3;
+    }
+
+    .row-alt {
+      background-color: #f7f2e8;
+    }
+
+    .Section-Title {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 22px;
+      line-height: 30px;
+      font-weight: bold;
+      color: #1a1612;
+    }
+
+    .date-line {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 18px;
+      line-height: 28px;
+      font-weight: bold;
+      color: #b66324;
+    }
+
+    .body-copy,
+    .body-copy p,
+    .body-copy li {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 20px;
+      line-height: 30px;
+      color: #221d17;
+    }
+
+    .small-label {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 13px;
+      line-height: 20px;
+      font-weight: bold;
+      color: #54623f;
+      Text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    .callout {
+      background-color: #eef2e8;
+      border-left: 4px solid #6b7c52;
+      border-top: 1px solid #c8d4b8;
+      border-right: 1px solid #c8d4b8;
+      border-bottom: 1px solid #c8d4b8;
+      padding: 16px;
+    }
+
+    .footer-copy {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 13px;
+      line-height: 21px;
+      color: #b8c3ab;
+    }
+
+    .footer-copy a {
+      color: #e19a60;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body, .wrapper {
+        background-color: #141413 !important;
+      }
+
+      .container {
+        background-color: #1e221b !important;
+        border-color: #2f322b !important;
+      }
+
+      .preheader {
+        color: #95897c !important;
+      }
+
+      .header-band,
+      .footer-band {
+        background-color: #1a241b !important;
+      }
+
+      .headline {
+        color: #f3eadb !important;
+      }
+
+      .header-body-copy {
+        color: #b7ad9f !important;
+      }
+
+      .Section-label {
+        background-color: #244145 !important;
+        border-color: #192d30 !important;
+        color: #d6edf0 !important;
+      }
+
+      .row-white {
+        background-color: #232924 !important;
+      }
+
+      .row-alt {
+        background-color: #1e221c !important;
+      }
+
+      .Section-Title {
+        color: #eedfc8 !important;
+      }
+
+      .date-line {
+        color: #e19a60 !important;
+      }
+
+      .body-copy,
+      .body-copy p,
+      .body-copy li {
+        color: #d3c7b8 !important;
+      }
+
+      .small-label {
+        color: #9bb27c !important;
+      }
+
+      .callout {
+        background-color: #1a241b !important;
+        border-left-color: #6b7c52 !important;
+        border-top-color: #31422f !important;
+        border-right-color: #31422f !important;
+        border-bottom-color: #31422f !important;
+      }
+
+      a {
+        color: #e19a60 !important;
+      }
+    }
+
+    @media only screen and (max-width: 620px) {
+      .container {
+        width: 100% !important;
+      }
+
+      .mobile-pad {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+      }
+
+      .headline {
+        font-size: 24px !important;
+        line-height: 32px !important;
+      }
+
+      .Section-Title {
+        font-size: 20px !important;
+        line-height: 28px !important;
+      }
+
+      .header-body-copy {
+        font-size: 17px !important;
+        line-height: 27px !important;
+      }
+
+      .body-copy,
+      .body-copy p,
+      .body-copy li,
+      .date-line {
+        font-size: 19px !important;
+        line-height: 29px !important;
+      }
+    }
+  </style>
+</head>
+<body style="margin:0; padding:0; background-color:#f5efe4;">
+  <center class="wrapper" style="width:100%; background-color:#f5efe4;">
+
+    <!-- PREHEADER OUTER WRAP: shown above the main email content -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; background-color:#f5efe4;">
+      <tr>
+        <td align="center" style="padding:18px 12px 8px 12px;">
+          <table role="presentation" class="container" width="720" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:720px; background-color:#fdf9f3; border:1px solid #d9cfc0;">
+            <tr>
+              <td class="preheader mobile-pad" align="center" style="padding:14px 20px; font-size:14px; line-height:22px; color:#665b50; font-family:Arial, Helvetica, sans-serif;">
+                Can't read this email easily?
+                <a href="LI|VIEWINBROWSER" target="_blank" rel="noopener noreferrer" style="color:#b66324; Text-decoration:underline;">View this email in a browser</a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- MAIN EMAIL WRAP -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; background-color:#f5efe4;">
+      <tr>
+        <td align="center" style="padding:0 12px 18px 12px;">
+          <table role="presentation" class="container" width="720" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:720px; background-color:#fdf9f3; border:1px solid #d9cfc0;">
+
+            <!-- HEADER: keep this wording and structure stable across daily sends -->
+            <tr>
+              <td class="header-band mobile-pad" style="padding:28px 28px 26px 28px; background-color:#2b3d2e; border-bottom:4px solid #b66324;">
+                <div class="eyebrow" style="font-size:12px; line-height:18px; Text-transform:uppercase; letter-spacing:1.6px; font-weight:bold; color:#b8c3ab; font-family:Arial, Helvetica, sans-serif;">Chuck's List &mdash; Events</div>
+                <div class="headline" style="padding-top:8px; font-size:28px; line-height:36px; font-weight:bold; color:#f5efe4; font-family:Georgia, 'Times New Roman', Times, serif;">Upcoming local events and opportunities from around the community</div>
+                <div class="header-body-copy" style="padding-top:12px; font-size:18px; line-height:28px; color:#d7cec0; font-family:Arial, Helvetica, sans-serif;">Serving Cortez, Dolores, Mancos, Durango, and surrounding communities. Events may be submitted by libraries, recreation centers, organizations, and community members&mdash;anyone can send in an event they want neighbors to know about.</div>
+              </td>
+            </tr>
+
+            <!-- BODY INTRO: optional reusable intro note; keep or remove as needed -->
+            <tr>
+              <td class="row-white mobile-pad" style="padding:22px 28px; background-color:#fdf9f3;">
+                <div class="callout body-copy" style="background-color:#eef2e8; border-left:4px solid #6b7c52; border-top:1px solid #c8d4b8; border-right:1px solid #c8d4b8; border-bottom:1px solid #c8d4b8; padding:16px; font-size:20px; line-height:30px; color:#221d17; font-family:Arial, Helvetica, sans-serif;">
+                  Replace this intro note as needed, or remove it entirely. This area is useful for a short one-paragraph overview, a submission reminder, a weather-related note, or a temporary announcement that applies to the entire edition.
+                </div>
+              </td>
+            </tr>
+
+            <!-- ========================================================== -->
+            <!-- GROUP 1: SINGLE EVENTS                                     -->
+            <!-- Use this group for one-off or limited-run events that do    -->
+            <!-- not need to be nested under a host with multiple listings.  -->
+            <!-- Duplicate the event block below as many times as needed.    -->
+            <!-- ========================================================== -->
+            <tr>
+              <td class="Section-label mobile-pad" style="padding:10px 28px; background-color:#3d6b72; border-top:1px solid #2e5259; border-bottom:1px solid #2e5259; font-size:13px; line-height:18px; Text-transform:uppercase; letter-spacing:1.3px; font-weight:bold; color:#e8f3f4; font-family:Arial, Helvetica, sans-serif;">Single Events</td>
+            </tr>
+
+            <!-- SINGLE EVENT ITEM: duplicate from here -->
+            <tr>
+              <td class="row-white mobile-pad" style="padding:22px 28px; background-color:#fdf9f3;">
+                <div class="Section-Title" style="font-size:22px; line-height:30px; font-weight:bold; color:#1a1612; font-family:Arial, Helvetica, sans-serif;">[Single event Title goes here]</div>
+                <div class="date-line" style="padding-top:8px; font-size:18px; line-height:28px; font-weight:bold; color:#b66324; font-family:Arial, Helvetica, sans-serif;">[Day, date, time, or date range goes here]</div>
+                <div class="body-copy" style="padding-top:10px; font-size:20px; line-height:30px; color:#221d17; font-family:Arial, Helvetica, sans-serif;">[Write a plain-language summary here. Keep the first paragraph easy to scan and front-load the most useful details.]</div>
+                <div class="body-copy" style="padding-top:10px; font-size:20px; line-height:30px; color:#221d17; font-family:Arial, Helvetica, sans-serif;">
+                  <span class="small-label" style="font-size:13px; line-height:20px; font-weight:bold; color:#54623f; Text-transform:uppercase; letter-spacing:0.6px; font-family:Arial, Helvetica, sans-serif;">Location</span>
+                  [Venue name, address, city]<br>
+                  <span class="small-label" style="font-size:13px; line-height:20px; font-weight:bold; color:#54623f; Text-transform:uppercase; letter-spacing:0.6px; font-family:Arial, Helvetica, sans-serif;">Details</span>
+                  [Cost, RSVP info, age info, contact info, website, or other short details]
+                </div>
+              </td>
+            </tr>
+            <!-- SINGLE EVENT DIVIDER: keep between repeated items -->
+            <tr>
+              <td style="padding:0; background-color:#fdf9f3;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="border-top:1px solid #d9cfc0; font-size:0; line-height:0;">&nbsp;</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <!-- SINGLE EVENT ITEM: duplicate to here -->
+
+            <!-- ========================================================== -->
+            <!-- GROUP 2: HOSTS WITH MULTIPLE EVENTS                         -->
+            <!-- Use this group when one organization, venue, or host has    -->
+            <!-- several related listings in the same issue.                 -->
+            <!-- Duplicate the host block below as needed.                   -->
+            <!-- ========================================================== -->
+            <tr>
+              <td class="Section-label mobile-pad" style="padding:10px 28px; background-color:#3d6b72; border-top:1px solid #2e5259; border-bottom:1px solid #2e5259; font-size:13px; line-height:18px; Text-transform:uppercase; letter-spacing:1.3px; font-weight:bold; color:#e8f3f4; font-family:Arial, Helvetica, sans-serif;">Hosts with Multiple Events</td>
+            </tr>
+
+            <!-- HOST BLOCK: duplicate from here -->
+            <tr>
+              <td class="row-alt mobile-pad" style="padding:22px 28px; background-color:#f7f2e8;">
+                <div class="Section-Title" style="font-size:22px; line-height:30px; font-weight:bold; color:#1a1612; font-family:Arial, Helvetica, sans-serif;">[Host or organization name goes here]</div>
+                <div class="body-copy" style="padding-top:10px; font-size:20px; line-height:30px; color:#221d17; font-family:Arial, Helvetica, sans-serif;">[Optional one-paragraph overview of the host, venue, or series. Keep it short.]</div>
+
+                <!-- HOST EVENT 1 -->
+                <div class="date-line" style="padding-top:14px; font-size:18px; line-height:28px; font-weight:bold; color:#b66324; font-family:Arial, Helvetica, sans-serif;">[First event date/time]</div>
+                <div class="body-copy" style="padding-top:6px; font-size:20px; line-height:30px; color:#221d17; font-family:Arial, Helvetica, sans-serif;"><strong>[First event Title]</strong> &mdash; [Short description.]</div>
+
+                <!-- HOST EVENT 2 -->
+                <div class="date-line" style="padding-top:14px; font-size:18px; line-height:28px; font-weight:bold; color:#b66324; font-family:Arial, Helvetica, sans-serif;">[Second event date/time]</div>
+                <div class="body-copy" style="padding-top:6px; font-size:20px; line-height:30px; color:#221d17; font-family:Arial, Helvetica, sans-serif;"><strong>[Second event Title]</strong> &mdash; [Short description.]</div>
+
+                <!-- ADDITIONAL HOST EVENTS -->
+                <div class="body-copy" style="padding-top:12px; font-size:20px; line-height:30px; color:#221d17; font-family:Arial, Helvetica, sans-serif;">
+                  <span class="small-label" style="font-size:13px; line-height:20px; font-weight:bold; color:#54623f; Text-transform:uppercase; letter-spacing:0.6px; font-family:Arial, Helvetica, sans-serif;">Location</span>
+                  [Shared location or host details]<br>
+                  <span class="small-label" style="font-size:13px; line-height:20px; font-weight:bold; color:#54623f; Text-transform:uppercase; letter-spacing:0.6px; font-family:Arial, Helvetica, sans-serif;">More Info</span>
+                  [Shared contact, ticket link, website, or RSVP note]
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0; background-color:#f7f2e8;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="border-top:1px solid #d9cfc0; font-size:0; line-height:0;">&nbsp;</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <!-- HOST BLOCK: duplicate to here -->
+
+            <!-- ========================================================== -->
+            <!-- GROUP 3: RECURRING EVENTS                                  -->
+            <!-- Use this group for classes, weekly meetups, standing        -->
+            <!-- programs, and ongoing repeating opportunities.              -->
+            <!-- Duplicate the recurring item block below as needed.         -->
+            <!-- ========================================================== -->
+            <tr>
+              <td class="Section-label mobile-pad" style="padding:10px 28px; background-color:#3d6b72; border-top:1px solid #2e5259; border-bottom:1px solid #2e5259; font-size:13px; line-height:18px; Text-transform:uppercase; letter-spacing:1.3px; font-weight:bold; color:#e8f3f4; font-family:Arial, Helvetica, sans-serif;">Recurring Events</td>
+            </tr>
+
+            <!-- RECURRING ITEM: duplicate from here -->
+            <tr>
+              <td class="row-white mobile-pad" style="padding:22px 28px; background-color:#fdf9f3;">
+                <div class="Section-Title" style="font-size:22px; line-height:30px; font-weight:bold; color:#1a1612; font-family:Arial, Helvetica, sans-serif;">[Recurring program Title goes here]</div>
+                <div class="date-line" style="padding-top:8px; font-size:18px; line-height:28px; font-weight:bold; color:#b66324; font-family:Arial, Helvetica, sans-serif;">[Weekly pattern, monthly pattern, season dates, or recurring schedule]</div>
+                <div class="body-copy" style="padding-top:10px; font-size:20px; line-height:30px; color:#221d17; font-family:Arial, Helvetica, sans-serif;">[Describe who it is for, what happens, and any practical details people need before attending.]</div>
+                <div class="body-copy" style="padding-top:10px; font-size:20px; line-height:30px; color:#221d17; font-family:Arial, Helvetica, sans-serif;">
+                  <span class="small-label" style="font-size:13px; line-height:20px; font-weight:bold; color:#54623f; Text-transform:uppercase; letter-spacing:0.6px; font-family:Arial, Helvetica, sans-serif;">Location</span>
+                  [Venue or meeting location]<br>
+                  <span class="small-label" style="font-size:13px; line-height:20px; font-weight:bold; color:#54623f; Text-transform:uppercase; letter-spacing:0.6px; font-family:Arial, Helvetica, sans-serif;">Sign Up</span>
+                  [Registration info, cost, or contact details]
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0; background-color:#fdf9f3;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="border-top:1px solid #d9cfc0; font-size:0; line-height:0;">&nbsp;</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <!-- RECURRING ITEM: duplicate to here -->
+
+            <!-- OPTIONAL END NOTE: useful for a final reminder about submissions -->
+            <tr>
+              <td class="row-alt mobile-pad" style="padding:22px 28px; background-color:#f7f2e8;">
+                <div class="body-copy" style="font-size:20px; line-height:30px; color:#221d17; font-family:Arial, Helvetica, sans-serif;">[Optional closing note. Example use: submission deadlines, holiday schedule changes, or a reminder to share this email with neighbors.]</div>
+              </td>
+            </tr>
+
+            <!-- FOOTER: keep this stable across editions -->
+            <tr>
+              <td style="padding:18px 0 0 0; background-color:#f5efe4;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; background-color:#2b3d2e; border-top:3px solid #c1732a;" class="footer-band">
+                  <tr>
+                    <td class="mobile-pad" align="center" style="padding:20px 24px 6px 24px; font-size:13px; line-height:19px; color:#a8b894; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+                      This email was sent by <a href="mailto:ChucksList@McAfeeFarm.biz" style="color:#e89050; Text-decoration:underline;">ChucksList@McAfeeFarm.biz</a> to <a href="mailto:$[UD:CONTACT_EMAIL]$" style="color:#e89050; Text-decoration:underline;">$[UD:CONTACT_EMAIL]$</a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="mobile-pad" align="center" style="padding:6px 24px; font-size:13px; line-height:19px; color:#a8b894; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+                      Not interested? <a href="$[LI:UNSUBSCRIBE]$" target="_blank" rel="noopener noreferrer" style="color:#e89050; Text-decoration:underline;">Unsubscribe</a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="mobile-pad" align="center" style="padding:6px 24px; font-size:13px; line-height:19px; color:#a8b894; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+                      Feedback or corrections: <a href="mailto:THill@techspecific.com" style="color:#e89050; Text-decoration:underline;">THill@techspecific.com</a> &nbsp;&middot;&nbsp; <a href="mailto:Chuck@mcafeefarm.biz" style="color:#e89050; Text-decoration:underline;">Chuck@mcafeefarm.biz</a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="mobile-pad" align="center" style="padding:6px 24px 24px 24px; font-size:13px; line-height:19px; color:#a8b894; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+                      Chuck's List powered by <a href="https://www.techspecific.com" target="_blank" rel="noopener noreferrer" style="color:#e89050; Text-decoration:underline;">TechSpecific</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </center>
+</body>
+</html>

@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="Text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <Title>Chuck's List Bulletin</Title>
+
+  <style type="Text/css">
+    body, table, td, p, a {
+      margin: 0;
+      padding: 0;
+      -webkit-Text-size-adjust: 100% !important;
+      -ms-Text-size-adjust: 100% !important;
+      Text-size-adjust: 100% !important;
+    }
+
+    table {
+      border-collapse: collapse;
+      border-spacing: 0;
+      mso-table-lspace: 0pt;
+      mso-table-rspace: 0pt;
+    }
+
+    img {
+      border: 0;
+      outline: none;
+      Text-decoration: none;
+      display: block;
+      max-width: 100%;
+      height: auto;
+      -ms-interpolation-mode: bicubic;
+    }
+
+    body {
+      width: 100% !important;
+      min-width: 100%;
+      background-color: #f5efe4;
+      color: #221d17;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    a {
+      color: #b66324;
+      Text-decoration: underline;
+    }
+
+    .wrapper {
+      width: 100%;
+      background-color: #f5efe4;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 720px;
+      background-color: #fdf9f3;
+      border: 1px solid #d9cfc0;
+    }
+
+    .preheader {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 14px;
+      line-height: 22px;
+      color: #665b50;
+    }
+
+    .hidden-preheader {
+      display: none !important;
+      visibility: hidden;
+      opacity: 0;
+      color: transparent;
+      height: 0;
+      width: 0;
+      overflow: hidden;
+      mso-hide: all;
+      font-size: 1px;
+      line-height: 1px;
+      max-height: 0;
+      max-width: 0;
+    }
+
+    .header-band,
+    .footer-band {
+      background-color: #2b3d2e;
+    }
+
+    .header-band {
+      border-bottom: 4px solid #b66324;
+    }
+
+    .footer-band {
+      border-top: 3px solid #c1732a;
+    }
+
+    .eyebrow {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12px;
+      line-height: 18px;
+      Text-transform: uppercase;
+      letter-spacing: 1.2px;
+      font-weight: bold;
+      color: #b8c3ab;
+    }
+
+    .headline {
+      font-family: Georgia, "Times New Roman", Times, serif;
+      font-size: 28px;
+      line-height: 36px;
+      font-weight: bold;
+      color: #f5efe4;
+    }
+
+    .header-body-copy {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 18px;
+      line-height: 28px;
+      color: #d7cec0;
+    }
+
+    .Section-label {
+      background-color: #3d6b72;
+      border-top: 1px solid #2e5259;
+      border-bottom: 1px solid #2e5259;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 13px;
+      line-height: 18px;
+      Text-transform: uppercase;
+      letter-spacing: 1.1px;
+      font-weight: bold;
+      color: #e8f3f4;
+    }
+
+    .row-white {
+      background-color: #fdf9f3;
+    }
+
+    .row-alt {
+      background-color: #f7f2e8;
+    }
+
+    .Section-Title {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 22px;
+      line-height: 30px;
+      font-weight: bold;
+      color: #1a1612;
+    }
+
+    .body-copy,
+    .body-copy p,
+    .body-copy li {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 20px;
+      line-height: 30px;
+      color: #221d17;
+    }
+
+    .small-label {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 13px;
+      line-height: 20px;
+      font-weight: bold;
+      color: #54623f;
+      Text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    .meta-line {
+      padding-top: 10px;
+      font-size: 20px;
+      line-height: 30px;
+      color: #221d17;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .callout {
+      background-color: #eef2e8;
+      border-left: 4px solid #6b7c52;
+      border-top: 1px solid #c8d4b8;
+      border-right: 1px solid #c8d4b8;
+      border-bottom: 1px solid #c8d4b8;
+      padding: 16px;
+    }
+
+    .footer-copy {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 13px;
+      line-height: 21px;
+      color: #b8c3ab;
+    }
+
+    .footer-copy a {
+      color: #e19a60;
+    }
+
+    .divider {
+      border-top: 1px solid #d9cfc0;
+      font-size: 0;
+      line-height: 0;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body, .wrapper {
+        background-color: #141413 !important;
+      }
+
+      .container {
+        background-color: #1e221b !important;
+        border-color: #2f322b !important;
+      }
+
+      .preheader {
+        color: #95897c !important;
+      }
+
+      .header-band,
+      .footer-band {
+        background-color: #1a241b !important;
+      }
+
+      .headline {
+        color: #f3eadb !important;
+      }
+
+      .header-body-copy {
+        color: #b7ad9f !important;
+      }
+
+      .Section-label {
+        background-color: #244145 !important;
+        border-color: #192d30 !important;
+        color: #d6edf0 !important;
+      }
+
+      .row-white {
+        background-color: #232924 !important;
+      }
+
+      .row-alt {
+        background-color: #1e221c !important;
+      }
+
+      .Section-Title {
+        color: #eedfc8 !important;
+      }
+
+      .body-copy,
+      .body-copy p,
+      .body-copy li,
+      .meta-line {
+        color: #d3c7b8 !important;
+      }
+
+      .small-label {
+        color: #9bb27c !important;
+      }
+
+      .callout {
+        background-color: #1a241b !important;
+        border-left-color: #6b7c52 !important;
+        border-top-color: #31422f !important;
+        border-right-color: #31422f !important;
+        border-bottom-color: #31422f !important;
+      }
+
+      .divider {
+        border-top-color: #384038 !important;
+      }
+
+      a {
+        color: #e19a60 !important;
+      }
+    }
+
+    @media only screen and (max-width: 620px) {
+      .container {
+        width: 100% !important;
+      }
+
+      .mobile-pad {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+      }
+
+      .headline {
+        font-size: 24px !important;
+        line-height: 32px !important;
+      }
+
+      .Section-Title {
+        font-size: 20px !important;
+        line-height: 28px !important;
+      }
+
+      .header-body-copy {
+        font-size: 17px !important;
+        line-height: 27px !important;
+      }
+
+      .body-copy,
+      .body-copy p,
+      .body-copy li,
+      .meta-line {
+        font-size: 19px !important;
+        line-height: 29px !important;
+      }
+    }
+  </style>
+</head>
+
+<body style="margin:0; padding:0; background-color:#f5efe4;">
+  <div class="hidden-preheader">
+    Local bulletin board posts from Cortez, Dolores, Mancos, Durango, and nearby communities.
+  </div>
+
+  <center class="wrapper" style="width:100%; background-color:#f5efe4;">
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; background-color:#f5efe4;">
+      <tr>
+        <td align="center" style="padding:18px 12px 8px 12px;">
+          <table role="presentation" class="container" width="720" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:720px; background-color:#fdf9f3; border:1px solid #d9cfc0;">
+            <tr>
+              <td class="preheader mobile-pad" align="center" style="padding:14px 20px; font-size:14px; line-height:22px; color:#665b50; font-family:Arial, Helvetica, sans-serif;">
+                Can't read this email easily?
+                <a href="$[LI:VIEWINBROWSER]$" target="_blank" rel="noopener noreferrer" style="color:#b66324; Text-decoration:underline;">View this email in a browser</a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; background-color:#f5efe4;">
+      <tr>
+        <td align="center" style="padding:0 12px 18px 12px;">
+          <table role="presentation" class="container" width="720" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:720px; background-color:#fdf9f3; border:1px solid #d9cfc0;">
+
+            <tr>
+              <td class="header-band mobile-pad" style="padding:28px 28px 26px 28px; background-color:#2b3d2e; border-bottom:4px solid #b66324;">
+                <div class="eyebrow" style="font-size:12px; line-height:18px; Text-transform:uppercase; letter-spacing:1.2px; font-weight:bold; color:#b8c3ab; font-family:Arial, Helvetica, sans-serif;">Chuck's List &mdash; Bulletin</div>
+                <div class="headline" style="padding-top:8px; font-size:28px; line-height:36px; font-weight:bold; color:#f5efe4; font-family:Georgia, 'Times New Roman', Times, serif;">Local bulletin board posts from around our community</div>
+                <div class="header-body-copy" style="padding-top:12px; font-size:18px; line-height:28px; color:#d7cec0; font-family:Arial, Helvetica, sans-serif;">
+                  Serving Cortez, Dolores, Mancos, Durango, and surrounding communities. Use this bulletin for housing, goods, services, items for sale, items wanted, local offers, and other practical community notices. If you don't see your post listed, please resubmit it.
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td class="row-white mobile-pad" style="padding:22px 28px; background-color:#fdf9f3;">
+                <div class="callout body-copy" style="background-color:#eef2e8; border-left:4px solid #6b7c52; border-top:1px solid #c8d4b8; border-right:1px solid #c8d4b8; border-bottom:1px solid #c8d4b8; padding:16px; font-size:20px; line-height:30px; color:#221d17; font-family:Arial, Helvetica, sans-serif;">
+                  Replace this note as needed, or remove it entirely. This area works well for submission reminders, deadlines, policy notes, safety reminders, or a quick explanation of how the current bulletin is grouped.
+                </div>
+              </td>
+            </tr>
+
+            <!-- Section GROUP START -->
+            <tr>
+              <td class="Section-label mobile-pad" style="padding:10px 28px; background-color:#3d6b72; border-top:1px solid #2e5259; border-bottom:1px solid #2e5259; font-size:13px; line-height:18px; Text-transform:uppercase; letter-spacing:1.1px; font-weight:bold; color:#e8f3f4; font-family:Arial, Helvetica, sans-serif;">
+                [Dynamic Section label goes here]
+              </td>
+            </tr>
+
+            <tr>
+              <td class="row-white mobile-pad" style="padding:22px 28px; background-color:#fdf9f3;">
+                <div class="Section-Title" style="font-size:22px; line-height:30px; font-weight:bold; color:#1a1612; font-family:Arial, Helvetica, sans-serif;">
+                  [Post Title goes here]
+                </div>
+
+                <div class="body-copy" style="padding-top:10px; font-size:20px; line-height:30px; color:#221d17; font-family:Arial, Helvetica, sans-serif;">
+                  [Use this first paragraph for the core facts. Make it easy to scan and useful to older readers.]
+                </div>
+
+                <div class="body-copy" style="padding-top:10px; font-size:20px; line-height:30px; color:#221d17; font-family:Arial, Helvetica, sans-serif;">
+                  [Use this second paragraph for added detail, conditions, features, timing, pricing, or conText.]
+                </div>
+
+                <!-- OPTIONAL Image BLOCK -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;">
+                  <tr>
+                    <td align="center" style="padding:4px 0;">
+                      <img
+                        src="https://via.placeholder.com/664x360"
+                        width="664"
+                        alt="[Describe the Image briefly and clearly]"
+                        style="width:100%; max-width:664px; height:auto; display:block; border:1px solid #d9cfc0;">
+                    </td>
+                  </tr>
+                </table>
+
+                <div class="meta-line" style="padding-top:14px; font-size:20px; line-height:30px; color:#221d17; font-family:Arial, Helvetica, sans-serif;">
+                  <span class="small-label" style="font-size:13px; line-height:20px; font-weight:bold; color:#54623f; Text-transform:uppercase; letter-spacing:0.6px; font-family:Arial, Helvetica, sans-serif;">Contact</span><br>
+                  [Phone, email, link, or reply instructions]
+                </div>
+
+                <div class="meta-line" style="padding-top:10px; font-size:20px; line-height:30px; color:#221d17; font-family:Arial, Helvetica, sans-serif;">
+                  <span class="small-label" style="font-size:13px; line-height:20px; font-weight:bold; color:#54623f; Text-transform:uppercase; letter-spacing:0.6px; font-family:Arial, Helvetica, sans-serif;">Optional detail</span><br>
+                  [Price, location, deadline, availability, or another short factual line]
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:0; background-color:#fdf9f3;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td class="divider" style="border-top:1px solid #d9cfc0; font-size:0; line-height:0;">&nbsp;</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td class="row-alt mobile-pad" style="padding:22px 28px; background-color:#f7f2e8;">
+                <div class="Section-Title" style="font-size:22px; line-height:30px; font-weight:bold; color:#1a1612; font-family:Arial, Helvetica, sans-serif;">
+                  [Second post Title in the same Section]
+                </div>
+
+                <div class="body-copy" style="padding-top:10px; font-size:20px; line-height:30px; color:#221d17; font-family:Arial, Helvetica, sans-serif;">
+                  [Second post summary goes here.]
+                </div>
+
+                <div class="meta-line" style="padding-top:14px; font-size:20px; line-height:30px; color:#221d17; font-family:Arial, Helvetica, sans-serif;">
+                  <span class="small-label" style="font-size:13px; line-height:20px; font-weight:bold; color:#54623f; Text-transform:uppercase; letter-spacing:0.6px; font-family:Arial, Helvetica, sans-serif;">Contact</span><br>
+                  [Phone, email, website, or other response method]
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:0; background-color:#f7f2e8;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td class="divider" style="border-top:1px solid #d9cfc0; font-size:0; line-height:0;">&nbsp;</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <!-- Section GROUP END -->
+
+            <tr>
+              <td class="row-white mobile-pad" style="padding:22px 28px; background-color:#fdf9f3;">
+                <div class="callout body-copy" style="background-color:#eef2e8; border-left:4px solid #6b7c52; border-top:1px solid #c8d4b8; border-right:1px solid #c8d4b8; border-bottom:1px solid #c8d4b8; padding:16px; font-size:20px; line-height:30px; color:#221d17; font-family:Arial, Helvetica, sans-serif;">
+                  [Optional note block for a final reminder, posting policy, fraud caution, or special bulletin instruction.]
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:18px 0 0 0; background-color:#f5efe4;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; background-color:#2b3d2e; border-top:3px solid #c1732a;" class="footer-band">
+                  <tr>
+                    <td class="mobile-pad footer-copy" align="center" style="padding:20px 24px 6px 24px; font-size:13px; line-height:19px; color:#a8b894; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+                      This email was sent by <a href="mailto:ChucksList@McAfeeFarm.biz" style="color:#e89050; Text-decoration:underline;">ChucksList@McAfeeFarm.biz</a> to <a href="mailto:$[UD:CONTACT_EMAIL]$" style="color:#e89050; Text-decoration:underline;">$[UD:CONTACT_EMAIL]$</a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="mobile-pad footer-copy" align="center" style="padding:6px 24px; font-size:13px; line-height:19px; color:#a8b894; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+                      Not interested? <a href="$[LI:UNSUBSCRIBE]$" target="_blank" rel="noopener noreferrer" style="color:#e89050; Text-decoration:underline;">Unsubscribe</a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="mobile-pad footer-copy" align="center" style="padding:6px 24px; font-size:13px; line-height:19px; color:#a8b894; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+                      Feedback or corrections: <a href="mailto:THill@techspecific.com" style="color:#e89050; Text-decoration:underline;">THill@techspecific.com</a> &nbsp;&middot;&nbsp; <a href="mailto:Chuck@mcafeefarm.biz" style="color:#e89050; Text-decoration:underline;">Chuck@mcafeefarm.biz</a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="mobile-pad footer-copy" align="center" style="padding:6px 24px 24px 24px; font-size:13px; line-height:19px; color:#a8b894; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+                      Chuck's List powered by <a href="https://www.techspecific.com" target="_blank" rel="noopener noreferrer" style="color:#e89050; Text-decoration:underline;">TechSpecific</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </center>
+</body>
+</html>
