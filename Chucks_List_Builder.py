@@ -119,12 +119,13 @@ def run_stage(
 
     try:
         result = subprocess.run(
-            cmd,
-            cwd=str(PROJ_DIR),          # always run from project root
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-        )
+    cmd,
+    cwd=str(PROJ_DIR),
+    capture_output=True,
+    text=True,
+    encoding="utf-8",
+    errors="replace",
+)
     except Exception as e:
         msg = f"ERROR: Failed to launch {script.name}: {e}"
         logger.error(msg)
