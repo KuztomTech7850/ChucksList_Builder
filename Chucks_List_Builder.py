@@ -101,7 +101,8 @@ def run_stage(
     """
     Run a single pipeline stage script via subprocess.
     Returns (returncode, stdout_text, stderr_text).
-    Streams output live to console AND captures it.
+    errors="replace" prevents Python 3.14 reader thread crash on non-UTF-8
+    bytes (e.g. 0xa0 non-breaking spaces) in subprocess output.
     """
     script: Path = stage["script"]
     name: str    = stage["name"]
@@ -119,17 +120,29 @@ def run_stage(
 
     try:
         result = subprocess.run(
-    cmd,
-    cwd=str(PROJ_DIR),
-    capture_output=True,
-    text=True,
-    encoding="utf-8",
-    errors="replace",
-)
+            cmd,
+            cwd=str(PROJ_DIR),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
     except Exception as e:
         msg = f"ERROR: Failed to launch {script.name}: {e}"
         logger.error(msg)
         return 1, "", msg
+
+    if result.stdout and result.stdout.strip():
+        for line in result.stdout.strip().splitlines():
+            logger.info(f"    {line}")
+    if result.stderr and result.stderr.strip():
+        for line in result.stderr.strip().splitlines():
+            if "[WARN]" in line:
+                logger.warning(f"    {line}")
+            else:
+                logger.error(f"    {line}")
+
+    return result.returncode, result.stdout or "", result.stderr or ""
 
     # Stream captured output to logger
 if result.stdout and result.stdout.strip():
