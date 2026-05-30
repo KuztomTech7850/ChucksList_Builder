@@ -153,7 +153,7 @@ def preprocess_events(issue_date_str: str) -> int:
         return 1
 
     print(
-        f"  [OK] Events preprocess: {len(passing)} items → {OUTPUT_CSV} "
+        f"  [OK] Events preprocess: {len(passing)} items -> {OUTPUT_CSV} "
         f"({skipped} skipped, issue_date={issue_date_str})"
     )
     return 0

@@ -169,7 +169,7 @@ def preprocess_bulletins(issue_date_str: str) -> int:
         return 1
 
     print(
-        f"  [OK] Bulletins preprocess: {len(passing)} items → {OUTPUT_CSV} "
+        f"  [OK] Bulletins preprocess: {len(passing)} items -> {OUTPUT_CSV} "
         f"({skipped} skipped, issue_date={issue_date_str})"
     )
     return 0
