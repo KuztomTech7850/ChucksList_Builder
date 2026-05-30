@@ -1,0 +1,15 @@
+# Personal data — never commit these
+*.log
+*.csv
+*.xlsx
+*.ods
+*.png
+*.jpg
+*.jpeg
+*.pdf
+*final_output.html
+data/
+contacts/
+*.env
+secrets.py
+config_local.py
