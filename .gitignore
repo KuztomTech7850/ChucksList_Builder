@@ -1,15 +1,45 @@
-# Personal data — never commit these
-*.log
+# Chuck's List Builder — .gitignore
+
+# --- Sensitive / local config ---
+.env
+*.env
+secrets.py
+config_local.py
+
+# --- Data files (never commit) ---
+data/
+contacts/
 *.csv
 *.xlsx
 *.ods
+*.ods.bak
+
+# --- Generated outputs ---
+*final_output.html
+bulletins/
+events/
+ChucksBulletin/
+ChucksEvents/
+
+# --- Media / assets ---
+Images/
 *.png
 *.jpg
 *.jpeg
 *.pdf
-*final_output.html
-data/
-contacts/
-*.env
-secrets.py
-config_local.py
+
+# --- Logs ---
+logs/
+*.log
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# --- Editor / OS ---
+.vscode/settings.json
+*.swp
+.DS_Store
+Thumbs.db
