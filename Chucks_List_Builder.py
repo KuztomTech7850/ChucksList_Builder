@@ -132,11 +132,11 @@ def run_stage(
         return 1, "", msg
 
     # Stream captured output to logger
-    if result.stdout.strip():
-        for line in result.stdout.strip().splitlines():
-            logger.info(f"    {line}")
-    if result.stderr.strip():
-        for line in result.stderr.strip().splitlines():
+if result.stdout and result.stdout.strip():
+    for line in result.stdout.strip().splitlines():
+        logger.info(f"    {line}")
+if result.stderr and result.stderr.strip():
+    for line in result.stderr.strip().splitlines():
             # surface warnings as warnings, errors as errors
             if "[WARN]" in line:
                 logger.warning(f"    {line}")
