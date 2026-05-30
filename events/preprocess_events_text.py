@@ -1,8 +1,14 @@
 """
 events/preprocess_events_text.py
 Role: Read raw Events.csv, validate, filter by issue_date, write events_data.csv
-Pipeline stage: PREPROCESS (runs before compile_events.py)
+Pipeline stage: PREPROCESS
 Called by: Chucks_List_Builder.py via subprocess
+
+CSV column contract (actual Events.csv headers):
+  Received, Starts, Expires, Section, Title, Text, Image, notes
+
+Date formats accepted: YYYY-MM-DD and MM/DD/YY
+Inclusion rule: Starts <= issue_date <= Expires
 """
 
 import csv
@@ -16,59 +22,50 @@ PROJ_DIR   = SCRIPT_DIR.parent
 INPUT_CSV  = PROJ_DIR / "Events.csv"
 OUTPUT_CSV = SCRIPT_DIR / "events_data.csv"
 
-REQUIRED_COLS = ["Title", "Body", "Starts", "Ends"]
-OPTIONAL_COLS = ["Location", "Contact", "Phone", "Image"]
+REQUIRED_COLS = ["Received", "Starts", "Expires", "Title", "Text"]
+OUT_COLS      = ["Title", "Body", "Starts", "Ends", "Section", "Image"]
 
-DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+DATE_RE_ISO   = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+DATE_RE_SHORT = re.compile(r"^(\d{1,2})/(\d{1,2})/(\d{2})$")
 
 
 def parse_date(val: str, row_num: int, field: str) -> date | None:
     val = val.strip()
     if not val:
-        print(
-            f"  [WARN] Row {row_num}: field '{field}' is empty. "
-            f"Expected format: YYYY-MM-DD. Item will be skipped.",
-            file=sys.stderr,
-        )
+        print(f"  [WARN] Row {row_num}: '{field}' is empty. Item skipped.", file=sys.stderr)
         return None
-    if not DATE_RE.match(val):
-        print(
-            f"  [WARN] Row {row_num}: field '{field}' has value '{val}'. "
-            f"Expected YYYY-MM-DD. Item will be skipped.",
-            file=sys.stderr,
-        )
-        return None
-    try:
-        return date.fromisoformat(val)
-    except ValueError as e:
-        print(
-            f"  [WARN] Row {row_num}: field '{field}' value '{val}' is not a valid date: {e}. "
-            f"Item will be skipped.",
-            file=sys.stderr,
-        )
-        return None
+    if DATE_RE_ISO.match(val):
+        try:
+            return date.fromisoformat(val)
+        except ValueError as e:
+            print(f"  [WARN] Row {row_num}: '{field}' value '{val}' invalid: {e}. Skipped.", file=sys.stderr)
+            return None
+    m = DATE_RE_SHORT.match(val)
+    if m:
+        try:
+            return date(2000 + int(m.group(3)), int(m.group(1)), int(m.group(2)))
+        except ValueError as e:
+            print(f"  [WARN] Row {row_num}: '{field}' value '{val}' invalid: {e}. Skipped.", file=sys.stderr)
+            return None
+    print(
+        f"  [WARN] Row {row_num}: '{field}' unrecognized date '{val}'. "
+        f"Expected MM/DD/YY or YYYY-MM-DD. Item skipped.",
+        file=sys.stderr,
+    )
+    return None
 
 
 def preprocess_events(issue_date_str: str) -> int:
-    """
-    Filter Events.csv by: starts <= issue_date <= ends.
-    Write passing rows to events_data.csv.
-    """
     try:
         issue_date = date.fromisoformat(issue_date_str)
     except ValueError:
-        print(
-            f"ERROR: --issue-date '{issue_date_str}' is not a valid date. "
-            f"Expected YYYY-MM-DD.",
-            file=sys.stderr,
-        )
+        print(f"ERROR: --issue-date '{issue_date_str}' must be YYYY-MM-DD.", file=sys.stderr)
         return 1
 
     if not INPUT_CSV.exists():
         print(
-            f"ERROR: Source file not found: {INPUT_CSV}\n"
-            f"  Fix: Export the Events sheet from Chucks-list-MASTER.ods "
-            f"as CSV to {INPUT_CSV}",
+            f"ERROR: Not found: {INPUT_CSV}\n"
+            f"  Fix: Export Events sheet from Chucks-list-MASTER.ods as CSV to {INPUT_CSV}",
             file=sys.stderr,
         )
         return 1
@@ -76,100 +73,87 @@ def preprocess_events(issue_date_str: str) -> int:
     try:
         with open(INPUT_CSV, newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)
-            if reader.fieldnames is None:
-                print(
-                    "ERROR: Events.csv appears empty or has no header row.\n"
-                    "  Fix: Re-export from Chucks-list-MASTER.ods.",
-                    file=sys.stderr,
-                )
+            if not reader.fieldnames:
+                print("ERROR: Events.csv has no header row.", file=sys.stderr)
                 return 1
-            actual_cols = set(reader.fieldnames)
-            missing = set(REQUIRED_COLS) - actual_cols
+            missing = set(REQUIRED_COLS) - set(reader.fieldnames)
             if missing:
                 print(
-                    f"ERROR: Events.csv is missing required columns: "
-                    f"{', '.join(sorted(missing))}\n"
-                    f"  Found columns: {', '.join(sorted(actual_cols))}\n"
+                    f"ERROR: Events.csv missing columns: {', '.join(sorted(missing))}\n"
+                    f"  Found: {', '.join(sorted(reader.fieldnames))}\n"
                     f"  Fix: Re-export from Chucks-list-MASTER.ods.",
                     file=sys.stderr,
                 )
                 return 1
             all_rows = list(reader)
     except UnicodeDecodeError:
-        print(
-            "ERROR: Events.csv could not be decoded as UTF-8.\n"
-            "  Fix: Re-export with UTF-8 encoding.",
-            file=sys.stderr,
-        )
+        print("ERROR: Events.csv is not UTF-8. Re-export with UTF-8 encoding.", file=sys.stderr)
         return 1
     except Exception as e:
-        print(f"ERROR reading {INPUT_CSV}: {e}", file=sys.stderr)
+        print(f"ERROR reading Events.csv: {e}", file=sys.stderr)
         return 1
 
-    passing_rows = []
-    skipped = 0
+    passing, skipped = [], 0
 
     for i, row in enumerate(all_rows, start=2):
-        title  = (row.get("Title") or "").strip()
-        starts_str = (row.get("Starts") or "").strip()
-        ends_str   = (row.get("Ends") or "").strip()
-        body   = (row.get("Body") or "").replace("\r\n", "\n").replace("\r", "\n")
+        title      = (row.get("Title") or "").strip()
+        section    = (row.get("Section") or "").strip()
+        body       = (row.get("Text") or "").replace("\r\n", "\n").replace("\r", "\n")
+        image      = (row.get("Image") or "").strip()
+        starts_str  = (row.get("Starts") or "").strip()
+        expires_str = (row.get("Expires") or "").strip()
 
         if not any(v.strip() for v in row.values()):
             continue
 
         if not title:
-            print(
-                f"  [WARN] Row {i}: Title is empty. "
-                f"Body starts: '{body[:40]}'. Item skipped.",
-                file=sys.stderr,
-            )
+            print(f"  [WARN] Row {i}: empty Title. Skipped.", file=sys.stderr)
             skipped += 1
             continue
 
-        starts = parse_date(starts_str, i, "Starts")
-        ends   = parse_date(ends_str, i, "Ends")
-
-        if starts is None or ends is None:
+        starts  = parse_date(starts_str,  i, "Starts")
+        expires = parse_date(expires_str, i, "Expires")
+        if starts is None or expires is None:
             skipped += 1
             continue
 
-        # Inclusion rule: starts <= issue_date <= ends
-        if not (starts <= issue_date <= ends):
-            continue
+        if not (starts <= issue_date <= expires):
+            continue  # normal date exclusion
 
-        if starts > ends:
+        if starts > expires:
             print(
-                f"  [WARN] Row {i}: Title='{title}' has Starts ({starts_str}) "
-                f"after Ends ({ends_str}). Check the source workbook.",
+                f"  [WARN] Row {i}: '{title}' Starts ({starts_str}) is after "
+                f"Expires ({expires_str}). Check source workbook.",
                 file=sys.stderr,
             )
 
-        body_lower = body.lower()
-        if "href=" in body_lower or "<a " in body_lower:
+        if "href=" in body.lower() or "<a " in body.lower():
             print(
-                f"  [WARN] Row {i}: Title='{title}' Body contains raw HTML. "
-                f"Use plain-text URLs only.",
+                f"  [WARN] Row {i}: '{title}' Body contains raw HTML. "
+                f"Use plain-text URLs.",
                 file=sys.stderr,
             )
 
-        out_row = {col: (row.get(col) or "").strip() for col in REQUIRED_COLS + OPTIONAL_COLS}
-        out_row["Body"] = body
-        passing_rows.append(out_row)
+        passing.append({
+            "Title":   title,
+            "Body":    body,
+            "Starts":  starts_str,
+            "Ends":    expires_str,
+            "Section": section,
+            "Image":   image,
+        })
 
-    out_cols = REQUIRED_COLS + OPTIONAL_COLS
     try:
         with open(OUTPUT_CSV, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=out_cols, extrasaction="ignore")
+            writer = csv.DictWriter(f, fieldnames=OUT_COLS, extrasaction="ignore")
             writer.writeheader()
-            writer.writerows(passing_rows)
+            writer.writerows(passing)
     except Exception as e:
         print(f"ERROR writing {OUTPUT_CSV}: {e}", file=sys.stderr)
         return 1
 
     print(
-        f"  [OK] Events preprocess: "
-        f"{len(passing_rows)} items written to {OUTPUT_CSV} "
+        f"  [OK] Events preprocess: {len(passing)} items → {OUTPUT_CSV} "
         f"({skipped} skipped, issue_date={issue_date_str})"
     )
     return 0
@@ -177,7 +161,7 @@ def preprocess_events(issue_date_str: str) -> int:
 
 if __name__ == "__main__":
     import argparse
-    p = argparse.ArgumentParser(description="Preprocess Events.csv.")
-    p.add_argument("--issue-date", required=True, help="Issue date YYYY-MM-DD")
+    p = argparse.ArgumentParser()
+    p.add_argument("--issue-date", required=True)
     args = p.parse_args()
     sys.exit(preprocess_events(args.issue_date))
