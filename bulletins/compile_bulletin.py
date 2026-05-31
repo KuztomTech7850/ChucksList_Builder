@@ -12,6 +12,9 @@ Engineer notes:
 - Markdown links [Label](https://example.com) are preferred and supported.
 - Bare URLs/emails are still linkified after HTML escaping.
 - Visible bulletin entries render only: Title, Text, optional Image.
+- Image file existence is NOT validated here by design for the current local workflow.
+  The HTML is often relocated after compile, and the CSV Image value is treated as trusted.
+  If/when this pipeline is migrated to a server, restore strict image/path validation there.
 """
 
 from __future__ import annotations
@@ -220,14 +223,6 @@ EMAIL_CSS = """
       color: #1a1612;
     }
 
-    .date-line {
-      font-family: Arial, Helvetica, sans-serif;
-      font-size: 18px;
-      line-height: 28px;
-      font-weight: bold;
-      color: #b66324;
-    }
-
     .body-copy,
     .body-copy p,
     .body-copy li {
@@ -235,24 +230,6 @@ EMAIL_CSS = """
       font-size: 20px;
       line-height: 30px;
       color: #221d17;
-    }
-
-    .small-label {
-      font-family: Arial, Helvetica, sans-serif;
-      font-size: 13px;
-      line-height: 20px;
-      font-weight: bold;
-      color: #54623f;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-    }
-
-    .meta-line {
-      padding-top: 10px;
-      font-size: 20px;
-      line-height: 30px;
-      color: #221d17;
-      font-family: Arial, Helvetica, sans-serif;
     }
 
     .callout {
@@ -349,25 +326,13 @@ EMAIL_CSS = """
         background-color: #1e221c !important;
       }
 
-      .section-title {
-        color: #eedfc8 !important;
-      }
-
-      .date-line {
-        color: #e19a60 !important;
-      }
-
+      .section-title,
       .body-copy,
       .body-copy p,
       .body-copy li,
-      .meta-line,
       .entry-subhead,
       .toc-section-heading {
         color: #d3c7b8 !important;
-      }
-
-      .small-label {
-        color: #9bb27c !important;
       }
 
       .callout {
@@ -415,8 +380,6 @@ EMAIL_CSS = """
       .body-copy,
       .body-copy p,
       .body-copy li,
-      .meta-line,
-      .date-line,
       .entry-subhead {
         font-size: 19px !important;
         line-height: 29px !important;
@@ -645,26 +608,20 @@ def group_rows(rows: list[tuple[int, dict[str, str]]]) -> list[tuple[str, list[t
 # Image rendering
 # ---------------------------------------------------------------------------
 
-def build_image_html(image_path: str, title: str, images_dir: Path) -> str:
+def build_image_html(image_path: str, title: str) -> str:
     """
-    Render the framed image block exactly after the text.
-    This is intentionally explicit so engineers can see the image HTML in output generation.
+    Current local workflow:
+    - trust the CSV Image value
+    - emit the image block directly
+    - do not validate the file on disk here
+
+    Server migration note:
+    - restore path/file validation when the pipeline runs in a fixed hosted environment
     """
     if not image_path or not image_path.strip():
         return ""
 
-    src = image_path.strip()
-    img_file = images_dir / src
-
-    if not img_file.exists():
-        print(
-            f"  [WARN] Image not found: {img_file} (field 'Image', item '{title}'). "
-            "Fix: place the file in Images/ with the exact same file name or clear the Image cell.",
-            file=sys.stderr,
-        )
-        return ""
-
-    local_src = f"../Images/{src}"
+    src = html.escape(image_path.strip(), quote=True)
     alt = html.escape(title, quote=True)
 
     return f"""
@@ -672,9 +629,9 @@ def build_image_html(image_path: str, title: str, images_dir: Path) -> str:
                        style="width:100%; background-color:#efe8dc; border:1px solid #d9cfc0; margin-top:14px;">
                   <tr>
                     <td style="padding:12px;">
-                      <a href="{local_src}" target="_blank" rel="noopener noreferrer"
+                      <a href="{src}" target="_blank" rel="noopener noreferrer"
                          style="display:block; text-decoration:none;">
-                        <img src="{local_src}"
+                        <img src="{src}"
                              alt="{alt}"
                              style="display:block; width:100%; max-width:100%; height:auto;">
                       </a>
@@ -706,7 +663,6 @@ def render_entry_row(
                 <div class="body-copy" style="padding-top:10px;">
                   {body_html}
                 </div>
-
 {image_html if image_html else ""}
               </td>
             </tr>
@@ -730,21 +686,16 @@ def build_toc_html(
     grouped_sections: list[tuple[str, list[tuple[int, dict[str, str]]]]],
     item_anchor_map: dict[tuple[str, int], str],
 ) -> str:
-    section_lines: list[str] = []
-    entry_lines: list[str] = []
+    lines: list[str] = []
 
     for section_name, items in grouped_sections:
-        section_lines.append(
-            f'<li><a href="#{SECTION_ANCHORS[section_name]}"><strong>{html.escape(section_name)}</strong></a></li>'
-        )
-
-        entry_lines.append(
-            f'<li style="list-style:none; margin-top:10px;"><strong>{html.escape(section_name)}</strong></li>'
+        lines.append(
+            f'<li style="list-style:none; margin-top:10px;"><strong><a href="#{SECTION_ANCHORS[section_name]}">{html.escape(section_name)}</a></strong></li>'
         )
         for row_num, row in items:
             title = (row.get("Title") or "").strip()
             anchor = item_anchor_map[(section_name, row_num)]
-            entry_lines.append(
+            lines.append(
                 f'<li><a href="#{anchor}">{html.escape(title)}</a></li>'
             )
 
@@ -755,17 +706,7 @@ def build_toc_html(
 
                 <div class="body-copy" style="padding-top:8px; font-size:18px; line-height:26px;">
                   <ul style="margin:8px 0 0 20px; padding:0;">
-                    {''.join(section_lines)}
-                  </ul>
-                </div>
-
-                <div class="toc-section-heading" style="padding-top:12px;">
-                  Full contents
-                </div>
-
-                <div class="body-copy" style="padding-top:6px; font-size:18px; line-height:26px;">
-                  <ul style="margin:8px 0 0 20px; padding:0;">
-                    {''.join(entry_lines)}
+                    {''.join(lines)}
                   </ul>
                 </div>
     """.rstrip()
@@ -927,7 +868,6 @@ def compile_bulletins(issue_date: str, top_callout: str, bottom_callout: str) ->
         return 1
 
     grouped_sections = group_rows(rows)
-    images_dir = PROJ_DIR / "Images"
     item_anchor_seen: dict[str, int] = {}
     item_anchor_map: dict[tuple[str, int], str] = {}
 
@@ -970,7 +910,7 @@ def compile_bulletins(issue_date: str, top_callout: str, bottom_callout: str) ->
             alternating_index += 1
 
             body_html = render_body(body_raw)
-            image_html = build_image_html(image, title, images_dir)
+            image_html = build_image_html(image, title)
             item_anchor = item_anchor_map[(section_name, row_num)]
 
             section_blocks.append(
@@ -999,12 +939,6 @@ def compile_bulletins(issue_date: str, top_callout: str, bottom_callout: str) ->
         staging_copy.write_text(full_html, encoding="utf-8")
         print(f"  [OK] Bulletin HTML written: {OUTPUT_HTML}")
         print(f"  [OK] Bulletin staging copy: {staging_copy}")
-        print(
-            "  [WARN] Local image paths are for preview only. "
-            "The bulletin output under bulletins/ should preview local Images/ correctly; "
-            "Zoho production sends still require hosted absolute image URLs.",
-            file=sys.stderr,
-        )
     except Exception as exc:
         print(f"ERROR writing output HTML: {exc}", file=sys.stderr)
         return 1
