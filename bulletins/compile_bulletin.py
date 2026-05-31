@@ -945,14 +945,13 @@ def compile_bulletins(issue_date: str, top_callout: str, bottom_callout: str) ->
 
     return 0
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compile bulletin HTML output.")
     parser.add_argument("--issue-date", required=True, help="Issue date YYYY-MM-DD")
-    parser.add_argument(
+   parser.add_argument(
         "--callout",
-        default=DEFAULT_TOP_CALLOUT,
-        help="Top callout message shown near the top of the bulletin.",
+        default="",
+        help="Top callout message. If omitted, the top callout box is suppressed entirely.",
     )
     parser.add_argument(
         "--bottom-callout",
@@ -960,4 +959,10 @@ if __name__ == "__main__":
         help="Bottom callout message shown near the footer.",
     )
     args = parser.parse_args()
-    sys.exit(compile_bulletins(args.issue_date, args.callout, args.bottom_callout))
+    sys.exit(
+        compile_events(
+            issue_date=args.issue_date,
+            callout=args.callout,
+            bottom_callout=args.bottom_callout,
+        )
+    )
