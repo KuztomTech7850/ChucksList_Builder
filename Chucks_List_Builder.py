@@ -1,3 +1,27 @@
+"""
+Chucks_List_Builder.py
+Role: Single orchestration entrypoint for the Chuck's List publishing pipeline.
+Called by operator with: py Chucks_List_Builder.py --issue-date YYYY-MM-DD
+
+Flags:
+  --issue-date YYYY-MM-DD   (required)
+  --issue-type bulletin | events | both  (default: both)
+  --callout TEXT            Override the top callout box text for whichever
+                            pipeline(s) are running. Passed through to the
+                            compiler subprocess via --callout.
+  --bottom-callout TEXT     Override the bottom callout box text.
+                            Passed through via --bottom-callout.
+  --log-to-file             Write build log to logs/build_YYYY-MM-DD_HHMMSS.log
+  --no-open-vscode          Skip opening output in VS Code after build
+
+CHANGELOG
+  2026-05-31  Bug 1 fix: emit [REMIND] log lines when --callout / --bottom-callout
+              are not supplied so the operator knows per-issue callout text
+              needs to be reviewed before upload.
+              Wire --callout and --bottom-callout through to compiler subprocesses
+              so the operator can pass them from the canonical command.
+"""
+
 import argparse
 import logging
 import subprocess
@@ -7,14 +31,42 @@ from pathlib import Path
 
 PROJ_DIR = Path(__file__).resolve().parent
 
+# Default callout text mirrors what each compiler uses when no --callout is passed.
+# Update these strings if the compiler defaults ever change.
+BULLETIN_DEFAULT_CALLOUT = (
+    "Chuck's List update: this space is reserved for a short issue-wide note, "
+    "announcement, or special message."
+)
+
+EVENTS_DEFAULT_CALLOUT = (
+    "This Events edition highlights single events, hosts with several listings, "
+    "and recurring programs..."
+)
+
 PIPELINE_STAGES = {
     "bulletin": [
-        {"name": "Bulletin Preprocess", "script": PROJ_DIR / "bulletins" / "preprocess_bulletin_text.py"},
-        {"name": "Bulletin Compile",    "script": PROJ_DIR / "bulletins" / "compile_bulletin.py"},
+        {
+            "name": "Bulletin Preprocess",
+            "script": PROJ_DIR / "bulletins" / "preprocess_bulletin_text.py",
+            "pass_callout": False,
+        },
+        {
+            "name": "Bulletin Compile",
+            "script": PROJ_DIR / "bulletins" / "compile_bulletin.py",
+            "pass_callout": True,
+        },
     ],
     "events": [
-        {"name": "Events Preprocess", "script": PROJ_DIR / "events" / "preprocess_events_text.py"},
-        {"name": "Events Compile",    "script": PROJ_DIR / "events" / "compile_events.py"},
+        {
+            "name": "Events Preprocess",
+            "script": PROJ_DIR / "events" / "preprocess_events_text.py",
+            "pass_callout": False,
+        },
+        {
+            "name": "Events Compile",
+            "script": PROJ_DIR / "events" / "compile_events.py",
+            "pass_callout": True,
+        },
     ],
 }
 
@@ -51,19 +103,67 @@ def validate_issue_date(issue_date_str: str) -> date:
     except ValueError:
         print(
             f"ERROR: --issue-date '{issue_date_str}' is not a valid date.\n"
-            f"  Expected format: YYYY-MM-DD (e.g., 2026-06-07)",
+            f"  Expected format: YYYY-MM-DD (e.g., 2026-05-31)",
             file=sys.stderr,
         )
         sys.exit(1)
 
 
-def run_stage(stage: dict, issue_date: str, logger: logging.Logger) -> tuple:
+def emit_callout_reminders(
+    pipelines: list,
+    callout: "str | None",
+    bottom_callout: "str | None",
+    logger: logging.Logger,
+) -> None:
+    """
+    Bug 1 fix: warn operator when callout text is at the default placeholder
+    so they know to review it before uploading to Zoho.
+    """
+    logger.info("")
+    for pipeline in pipelines:
+        label = pipeline.upper()
+
+        if callout is None:
+            default_preview = (
+                BULLETIN_DEFAULT_CALLOUT[:70] if pipeline == "bulletin"
+                else EVENTS_DEFAULT_CALLOUT[:70]
+            )
+            logger.warning(
+                f"[REMIND] {label} top callout is the DEFAULT placeholder:\n"
+                f"         '{default_preview}...'\n"
+                f"         To customize: --callout \"Your message here\""
+            )
+        else:
+            logger.info(f"[CALLOUT] {label} top callout set: '{callout[:60]}...'")
+
+        if bottom_callout is None:
+            logger.warning(
+                f"[REMIND] {label} bottom callout: no --bottom-callout passed. "
+                f"Using compiler default.\n"
+                f"         To customize: --bottom-callout \"Your closing note here\""
+            )
+        else:
+            logger.info(f"[CALLOUT] {label} bottom callout set: '{bottom_callout[:60]}...'")
+
+    logger.info("")
+
+
+def run_stage(
+    stage: dict,
+    issue_date: str,
+    logger: logging.Logger,
+    callout: "str | None" = None,
+    bottom_callout: "str | None" = None,
+) -> tuple:
     """
     Run one pipeline stage subprocess.
     Returns (returncode, stdout, stderr).
+
+    If stage['pass_callout'] is True and --callout / --bottom-callout were
+    supplied by the operator, forward them to the compiler subprocess.
+
     errors="replace" prevents Python 3.14 reader thread crash on non-UTF-8
     bytes (0xa0 non-breaking spaces) emitted by compile scripts on Windows.
-    stdout/stderr default to "" if None to prevent AttributeError on .strip().
     """
     script = stage["script"]
     name   = stage["name"]
@@ -74,6 +174,14 @@ def run_stage(stage: dict, issue_date: str, logger: logging.Logger) -> tuple:
         return 1, "", msg
 
     cmd = [sys.executable, str(script), "--issue-date", issue_date]
+
+    # Forward callout args only to compile stages, not preprocess stages
+    if stage.get("pass_callout"):
+        if callout is not None:
+            cmd += ["--callout", callout]
+        if bottom_callout is not None:
+            cmd += ["--bottom-callout", bottom_callout]
+
     logger.info(f"  Running: {' '.join(str(c) for c in cmd)}")
 
     try:
@@ -98,7 +206,7 @@ def run_stage(stage: dict, issue_date: str, logger: logging.Logger) -> tuple:
             logger.info(f"    {line}")
     if stderr.strip():
         for line in stderr.strip().splitlines():
-            if "[WARN]" in line:
+            if "[WARN]" in line or "[REMIND]" in line:
                 logger.warning(f"    {line}")
             else:
                 logger.error(f"    {line}")
@@ -122,15 +230,20 @@ def main() -> int:
         description="Chuck's List publishing pipeline builder.",
         epilog=(
             "Examples:\n"
-            "  py Chucks_List_Builder.py --issue-date 2026-06-07\n"
-            "  py Chucks_List_Builder.py --issue-date 2026-06-07 --issue-type bulletin\n"
-            "  py Chucks_List_Builder.py --issue-date 2026-06-07 --log-to-file\n"
+            "  py Chucks_List_Builder.py --issue-date 2026-05-31\n"
+            "  py Chucks_List_Builder.py --issue-date 2026-05-31 --issue-type bulletin\n"
+            "  py Chucks_List_Builder.py --issue-date 2026-05-31 --callout \"Special note here\"\n"
+            "  py Chucks_List_Builder.py --issue-date 2026-05-31 --log-to-file\n"
         ),
     )
     parser.add_argument("--issue-date", required=True, metavar="YYYY-MM-DD",
                         help="Publication date for this issue")
     parser.add_argument("--issue-type", choices=["bulletin", "events", "both"],
                         default="both", help="Which pipeline(s) to run (default: both)")
+    parser.add_argument("--callout", default=None, metavar="TEXT",
+                        help="Override the top callout box text (passed to compiler)")
+    parser.add_argument("--bottom-callout", default=None, metavar="TEXT",
+                        help="Override the bottom callout box text (passed to compiler)")
     parser.add_argument("--log-to-file", action="store_true",
                         help="Write build log to logs/build_YYYY-MM-DD_HHMMSS.log")
     parser.add_argument("--no-open-vscode", action="store_true",
@@ -151,6 +264,9 @@ def main() -> int:
     if args.issue_type in ("events", "both"):
         pipelines.append("events")
 
+    # Bug 1 fix: remind operator about callout text before any stage runs
+    emit_callout_reminders(pipelines, args.callout, args.bottom_callout, logger)
+
     failed_stages = []
     passed_stages = []
 
@@ -158,7 +274,13 @@ def main() -> int:
         logger.info(f"\n-- {pipeline.upper()} PIPELINE --")
         for stage in PIPELINE_STAGES[pipeline]:
             logger.info(f"\n  Stage: {stage['name']}")
-            rc, stdout, stderr = run_stage(stage, args.issue_date, logger)
+            rc, stdout, stderr = run_stage(
+                stage,
+                args.issue_date,
+                logger,
+                callout=args.callout,
+                bottom_callout=args.bottom_callout,
+            )
             if rc != 0:
                 logger.error(
                     f"  FAILED: {stage['name']} exited with code {rc}.\n"

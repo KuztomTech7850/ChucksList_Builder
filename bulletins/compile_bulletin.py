@@ -57,11 +57,11 @@ SECTION_ANCHORS = {
     "Community Announcements": "section-community-announcements",
 }
 
-DEFAULT_TOP_CALLOUT = (
-    "Chuck's List update: this space is reserved for a short issue-wide note, "
-    "announcement, or special message."
-)
+# Top callout: render only if the operator passes --callout.
+# If omitted, the block is suppressed entirely.
+DEFAULT_TOP_CALLOUT = ""
 
+# Bottom callout: always rendered. Override with --bottom-callout if needed.
 DEFAULT_BOTTOM_CALLOUT = (
     "Be cautious of offers that ask for advance payment or personal information. "
     "Chuck's List is community-run; use your judgment, meet in public spaces when "

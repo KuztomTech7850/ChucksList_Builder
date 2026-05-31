@@ -52,16 +52,15 @@ SECTION_ID_MAP = {
     "Recurring Events": "section-recurring-events",
 }
 
-DEFAULT_TOP_CALLOUT = (
-    "This Events edition highlights single events, hosts with several listings, "
-    "and recurring programs. Each listing includes a date-line and location so "
-    "you can quickly scan for what fits your schedule."
-)
+# Top callout: render only if the operator passes --callout.
+# If omitted, the block is suppressed entirely.
+DEFAULT_TOP_CALLOUT = ""
 
+# Bottom callout: always rendered. Override with --bottom-callout if needed.
 DEFAULT_BOTTOM_CALLOUT = (
-    "To be listed in a future Events edition, send your event name, date, "
-    "time, location, and a short description by the posted deadline to the "
-    "Chuck's List email address."
+    "Be cautious of offers that ask for advance payment or personal information. "
+    "Chuck's List is community-run; use your judgment, meet in public spaces when "
+    "possible, and check references when needed."
 )
 
 TRAILING_PUNCTUATION = ".,;:!?)}]"
@@ -931,11 +930,13 @@ def compile_events(issue_date: str, callout: str | None = None, bottom_callout: 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compile events HTML output.")
     parser.add_argument("--issue-date", required=True, help="Issue date YYYY-MM-DD")
-    parser.add_argument(
-        "--callout",
-        default=None,
-        help="Optional top callout box text override.",
-    )
+                {f'''<tr>
+              <td class="row-white mobile-pad" style="padding:18px 28px;">
+                <div class="callout body-copy">
+                  {escape_then_linkify(top_callout)}
+                </div>
+              </td>
+            </tr>''' if top_callout and top_callout.strip() else ""}
     parser.add_argument(
         "--bottom-callout",
         default=None,
