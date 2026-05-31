@@ -853,11 +853,7 @@ def compile_events(issue_date: str, callout: str | None = None, bottom_callout: 
             row_bg = "#fdf9f3" if row_class == "row-white" else "#f7f2e8"
             alternating_index += 1
 
-            date_line = ""
-            if starts and ends and starts != ends:
-                date_line = f"{html.escape(starts)} – {html.escape(ends)}"
-            elif starts:
-                date_line = html.escape(starts)
+            date_line = ""  # Event dates belong in the Body text, not rendered from CSV date columns
 
             meta_parts = []
             if location:

@@ -9,6 +9,15 @@ CSV column contract (actual Events.csv headers):
 
 Date formats accepted: YYYY-MM-DD and MM/DD/YY
 Inclusion rule: Starts <= issue_date <= Expires
+
+CHANGELOG
+  2026-05-31  Bug 2 fix: add quoting=csv.QUOTE_ALL to DictWriter so that
+              multi-line cells and cells containing []() markdown link syntax
+              survive the CSV round-trip intact (was written unquoted, which
+              could corrupt bracket/paren characters in the Body field and
+              cause compile_events.py MARKDOWN_LINK_RE to miss the match).
+              Improved skip messages: each skip now logs row, field, value,
+              and fix instruction to match bulletin preprocess standard.
 """
 
 import csv
@@ -29,27 +38,40 @@ DATE_RE_ISO   = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 DATE_RE_SHORT = re.compile(r"^(\d{1,2})/(\d{1,2})/(\d{2})$")
 
 
-def parse_date(val: str, row_num: int, field: str) -> date | None:
+def parse_date(val: str, row_num: int, field: str) -> "date | None":
     val = val.strip()
     if not val:
-        print(f"  [WARN] Row {row_num}: '{field}' is empty. Item skipped.", file=sys.stderr)
+        print(
+            f"  [WARN] Row {row_num}: '{field}' is empty — date is required.\n"
+            f"  Fix: Open Chucks-list-MASTER.ods, locate row {row_num}, fill in '{field}'.",
+            file=sys.stderr,
+        )
         return None
     if DATE_RE_ISO.match(val):
         try:
             return date.fromisoformat(val)
         except ValueError as e:
-            print(f"  [WARN] Row {row_num}: '{field}' value '{val}' invalid: {e}. Skipped.", file=sys.stderr)
+            print(
+                f"  [WARN] Row {row_num}: '{field}' value '{val}' is not a valid date: {e}\n"
+                f"  Fix: Correct to YYYY-MM-DD format in Chucks-list-MASTER.ods.",
+                file=sys.stderr,
+            )
             return None
     m = DATE_RE_SHORT.match(val)
     if m:
         try:
             return date(2000 + int(m.group(3)), int(m.group(1)), int(m.group(2)))
         except ValueError as e:
-            print(f"  [WARN] Row {row_num}: '{field}' value '{val}' invalid: {e}. Skipped.", file=sys.stderr)
+            print(
+                f"  [WARN] Row {row_num}: '{field}' value '{val}' is not a valid date: {e}\n"
+                f"  Fix: Correct the month/day/year in Chucks-list-MASTER.ods.",
+                file=sys.stderr,
+            )
             return None
     print(
-        f"  [WARN] Row {row_num}: '{field}' unrecognized date '{val}'. "
-        f"Expected MM/DD/YY or YYYY-MM-DD. Item skipped.",
+        f"  [WARN] Row {row_num}: '{field}' value '{val}' is not a recognized date format.\n"
+        f"  Expected MM/DD/YY or YYYY-MM-DD.\n"
+        f"  Fix: Re-enter '{field}' in Chucks-list-MASTER.ods row {row_num}.",
         file=sys.stderr,
     )
     return None
@@ -96,10 +118,11 @@ def preprocess_events(issue_date_str: str) -> int:
     passing, skipped = [], 0
 
     for i, row in enumerate(all_rows, start=2):
-        title      = (row.get("Title") or "").strip()
-        section    = (row.get("Section") or "").strip()
-        body       = (row.get("Text") or "").replace("\r\n", "\n").replace("\r", "\n")
-        image      = (row.get("Image") or "").strip()
+        title       = (row.get("Title") or "").strip()
+        section     = (row.get("Section") or "").strip()
+        # Normalize line endings; preserve markdown link syntax verbatim
+        body        = (row.get("Text") or "").replace("\r\n", "\n").replace("\r", "\n")
+        image       = (row.get("Image") or "").strip()
         starts_str  = (row.get("Starts") or "").strip()
         expires_str = (row.get("Expires") or "").strip()
 
@@ -107,7 +130,11 @@ def preprocess_events(issue_date_str: str) -> int:
             continue
 
         if not title:
-            print(f"  [WARN] Row {i}: empty Title. Skipped.", file=sys.stderr)
+            print(
+                f"  [WARN] Row {i}: Title is empty — item cannot be published.\n"
+                f"  Fix: Add a Title in Chucks-list-MASTER.ods row {i}.",
+                file=sys.stderr,
+            )
             skipped += 1
             continue
 
@@ -117,20 +144,22 @@ def preprocess_events(issue_date_str: str) -> int:
             skipped += 1
             continue
 
-        if not (starts <= issue_date <= expires):
-            continue  # normal date exclusion
-
         if starts > expires:
             print(
-                f"  [WARN] Row {i}: '{title}' Starts ({starts_str}) is after "
-                f"Expires ({expires_str}). Check source workbook.",
+                f"  [WARN] Row {i}: '{title}' — Starts ({starts_str}) is after "
+                f"Expires ({expires_str}).\n"
+                f"  Fix: Correct Starts or Expires in Chucks-list-MASTER.ods row {i}.",
                 file=sys.stderr,
             )
 
+        if not (starts <= issue_date <= expires):
+            continue  # normal date exclusion — not an error
+
         if "href=" in body.lower() or "<a " in body.lower():
             print(
-                f"  [WARN] Row {i}: '{title}' Body contains raw HTML. "
-                f"Use plain-text URLs.",
+                f"  [WARN] Row {i}: '{title}' Body contains raw HTML anchor tags.\n"
+                f"  Fix: Replace <a href=\"..\"> with markdown: [label](https://url) "
+                f"in Chucks-list-MASTER.ods row {i}.",
                 file=sys.stderr,
             )
 
@@ -144,8 +173,18 @@ def preprocess_events(issue_date_str: str) -> int:
         })
 
     try:
+        # QUOTE_ALL ensures multi-line Body cells and cells containing markdown
+        # link syntax  [label](url)  are always double-quoted in the CSV.
+        # Without this, cells containing parentheses or brackets could be
+        # written unquoted and mis-parsed on read-back, causing MARKDOWN_LINK_RE
+        # in compile_events.py to miss matches and render links as raw text.
         with open(OUTPUT_CSV, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=OUT_COLS, extrasaction="ignore")
+            writer = csv.DictWriter(
+                f,
+                fieldnames=OUT_COLS,
+                extrasaction="ignore",
+                quoting=csv.QUOTE_ALL,   # <-- Bug 2 fix
+            )
             writer.writeheader()
             writer.writerows(passing)
     except Exception as e:
