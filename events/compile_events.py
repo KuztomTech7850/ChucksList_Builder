@@ -1,13 +1,22 @@
 """
 events/compile_events.py
-Role: Compile events_data.csv → chucks_events_final_output.html
+Role: Compile events_data.csv -> chucks_events_final_output.html
 Pipeline stage: COMPILE (runs after preprocess_events_text.py)
 Called by: Chucks_List_Builder.py via subprocess
 
-Design decisions: same as compile_bulletin.py.
-Event-specific: date range display, location field, event anchor/TOC by date+title.
+Engineer notes:
+- This compiler assumes preprocess_events_text.py has already normalized and validated the data.
+- Compile is responsible for organizing and rendering the massaged event rows into final email HTML.
+- Image file existence is NOT validated here by design for the current local workflow.
+  The HTML is often relocated after compile, and the CSV Image value is treated as trusted.
+  If/when this pipeline is migrated to a server, restore strict image/path validation there.
+- Markdown links [Label](https://example.com) are supported and preferred.
+- Bare URLs/emails are linkified only after escaping.
 """
 
+from __future__ import annotations
+
+import argparse
 import csv
 import html
 import re
@@ -15,29 +24,54 @@ import sys
 import textwrap
 from pathlib import Path
 
-SCRIPT_DIR  = Path(__file__).resolve().parent
-PROJ_DIR    = SCRIPT_DIR.parent
-INPUT_CSV   = SCRIPT_DIR / "events_data.csv"
-OUTPUT_DIR  = PROJ_DIR / "ChucksEvents"
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJ_DIR = SCRIPT_DIR.parent
+INPUT_CSV = SCRIPT_DIR / "events_data.csv"
+OUTPUT_DIR = PROJ_DIR / "ChucksEvents"
 OUTPUT_HTML = SCRIPT_DIR / "chucks_events_final_output.html"
 
-# Reuse palette and link logic from compile_bulletin.py inline
-# (kept here for self-contained module — no cross-module import needed)
+
 PALETTE = {
-    "bg":           "#FAF6F0",
-    "surface":      "#F2EDE4",
-    "border":       "#C8B89A",
-    "header_bg":    "#2D5A3D",   # deep sage green for events (distinguishes from bulletin)
-    "header_text":  "#FAF6F0",
-    "section_bg":   "#3D7A52",
+    "bg": "#FAF6F0",
+    "surface": "#F2EDE4",
+    "border": "#C8B89A",
+    "header_bg": "#2D5A3D",
+    "header_text": "#FAF6F0",
+    "section_bg": "#3D7A52",
     "section_text": "#FAF6F0",
-    "accent":       "#8B6914",
-    "body_text":    "#2C1E0F",
-    "muted":        "#6E5740",
-    "link":         "#1A4D6E",
-    "toc_bg":       "#EDE5D8",
-    "hr":           "#C8B89A",
+    "accent": "#8B6914",
+    "body_text": "#2C1E0F",
+    "muted": "#6E5740",
+    "link": "#1A4D6E",
+    "toc_bg": "#EDE5D8",
+    "hr": "#C8B89A",
 }
+
+SECTION_ORDER = [
+    "Single Events",
+    "Multiple Events",
+    "Recurring Events",
+]
+
+SECTION_ALIASES = {
+    "Single": "Single Events",
+    "Single Events": "Single Events",
+    "Multiple": "Multiple Events",
+    "Multiple Events": "Multiple Events",
+    "Recurring": "Recurring Events",
+    "Recurring Events": "Recurring Events",
+}
+
+TRAILING_PUNCTUATION = ".,;:!?)}]"
+
+MARKDOWN_LINK_RE = re.compile(
+    r"\[([^\]\n]{1,300})\]\((https?://[^\s)]+|mailto:[^\s)]+)\)",
+    re.IGNORECASE,
+)
+BULLET_LINE_RE = re.compile(r"^\s*[-*•]\s+(.*)$")
+SUBHEAD_RE = re.compile(r"^\s*##\s*(.+?)\s*$")
+
 
 EMAIL_CSS = f"""
   body {{ margin:0; padding:0; background:{PALETTE['bg']};
@@ -53,6 +87,10 @@ EMAIL_CSS = f"""
   .toc-box ul {{ margin:0; padding-left:18px; }}
   .toc-box li {{ margin-bottom:6px; }}
   .toc-box a {{ color:{PALETTE['link']}; text-decoration:none; font-size:16px; }}
+  .toc-section {{ list-style:none; margin-top:10px; font-weight:700; }}
+  .section-label {{ background:{PALETTE['section_bg']}; color:{PALETTE['section_text']};
+    padding:10px 28px; font-size:13px; line-height:18px; text-transform:uppercase;
+    letter-spacing:1.2px; font-weight:700; }}
   .item-block {{ background:{PALETTE['surface']}; border-bottom:1px solid {PALETTE['border']};
     padding:20px 28px 16px 28px; }}
   .item-title {{ font-size:20px; font-weight:700; margin:0 0 6px 0; color:{PALETTE['body_text']}; }}
@@ -62,223 +100,335 @@ EMAIL_CSS = f"""
   .item-image {{ margin:12px 0 0 0; text-align:center; }}
   .item-image img {{ max-width:100%; height:auto; border-radius:4px;
     border:1px solid {PALETTE['border']}; }}
+  .entry-subhead {{ font-size:17px; font-weight:700; color:{PALETTE['accent']}; margin:18px 0 6px 0; }}
   .footer {{ background:{PALETTE['header_bg']}; color:{PALETTE['header_text']};
     padding:18px 32px; text-align:center; font-size:14px; }}
   hr.section-rule {{ border:none; border-top:2px solid {PALETTE['hr']}; margin:0; }}
 """
 
-_TOKEN_RE = re.compile(
-    r'(https?://[^\s<>"\']{4,}?(?=[.,;:!?)}\]]*(?:\s|$))'
-    r'|[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}(?=[.,;:!?)}\]]*(?:\s|$)))',
-    re.IGNORECASE,
-)
-_URL_RE   = re.compile(r'^https?://', re.IGNORECASE)
-_EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
+
+def make_anchor(title: str, seen: dict[str, int]) -> str:
+    slug = re.sub(r"[^\w\s-]", "", title.lower())
+    slug = re.sub(r"[\s_]+", "-", slug).strip("-")
+    slug = slug[:60] or "item"
+    slug = f"item-{slug}"
+    count = seen.get(slug, 0) + 1
+    seen[slug] = count
+    return slug if count == 1 else f"{slug}-{count}"
 
 
-def linkify_escaped(escaped_text: str) -> str:
-    parts = _TOKEN_RE.split(escaped_text)
-    out = []
-    for part in parts:
-        clean = part.rstrip('.,;:!?)}\]')
-        trailing = part[len(clean):]
-        if _URL_RE.match(clean):
-            out.append(
-                f'<a href="{clean}" target="_blank" rel="noopener noreferrer">'
-                f'{clean}</a>{trailing}'
+def split_trailing_punctuation(token: str) -> tuple[str, str]:
+    clean = token.rstrip(TRAILING_PUNCTUATION)
+    trailing = token[len(clean):]
+    return clean, trailing
+
+
+def protect_markdown_links(text: str) -> tuple[str, dict[str, str]]:
+    replacements: dict[str, str] = {}
+    counter = 0
+
+    def repl(match: re.Match[str]) -> str:
+        nonlocal counter
+        counter += 1
+        label = html.escape(match.group(1).strip())
+        href = html.escape(match.group(2).strip(), quote=True)
+        token = f"__MDLINK_{counter}__"
+
+        if href.lower().startswith("mailto:"):
+            replacements[token] = f'<a href="{href}">{label}</a>'
+        else:
+            replacements[token] = (
+                f'<a href="{href}" target="_blank" rel="noopener noreferrer">{label}</a>'
             )
-        elif _EMAIL_RE.match(clean):
+        return token
+
+    return MARKDOWN_LINK_RE.sub(repl, text), replacements
+
+
+def restore_markdown_links(text: str, replacements: dict[str, str]) -> str:
+    for token, replacement in replacements.items():
+        text = text.replace(token, replacement)
+    return text
+
+
+def linkify_escaped_text(escaped_text: str) -> str:
+    token_re = re.compile(
+        r"(https?://[^\s<>\"]+|[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})"
+    )
+
+    parts = token_re.split(escaped_text)
+    out: list[str] = []
+
+    for part in parts:
+        if not part:
+            continue
+
+        clean, trailing = split_trailing_punctuation(part)
+
+        if re.match(r"^https?://", clean, re.IGNORECASE):
+            out.append(
+                f'<a href="{clean}" target="_blank" rel="noopener noreferrer">{clean}</a>{trailing}'
+            )
+        elif re.match(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$", clean):
             out.append(f'<a href="mailto:{clean}">{clean}</a>{trailing}')
         else:
             out.append(part)
+
     return "".join(out)
 
 
-def render_body(raw_text: str) -> str:
-    if not raw_text:
-        return ""
-    text = raw_text.replace("\r\n", "\n").replace("\r", "\n")
-    blocks = re.split(r"\n{2,}", text.strip())
-    out_parts = []
-    list_buffer = []
+def escape_then_linkify(text: str) -> str:
+    protected, replacements = protect_markdown_links(text)
+    escaped = html.escape(protected)
+    linked = linkify_escaped_text(escaped)
+    return restore_markdown_links(linked, replacements)
 
-    def flush_list():
-        if list_buffer:
-            items = "".join(
-                f'<li style="margin-bottom:6px;">{item}</li>' for item in list_buffer
-            )
-            out_parts.append(
-                f'<ul style="margin:0 0 14px 0;padding-left:22px;">{items}</ul>'
-            )
-            list_buffer.clear()
+
+def render_body(raw_text: str) -> str:
+    if not raw_text or not raw_text.strip():
+        return ""
+
+    normalized = raw_text.replace("\r\n", "\n").replace("\r", "\n").strip()
+    blocks = re.split(r"\n{2,}", normalized)
+    html_blocks: list[str] = []
 
     for block in blocks:
-        lines = block.strip().split("\n")
-        if not lines:
+        lines = [line.rstrip() for line in block.split("\n")]
+        if not any(line.strip() for line in lines):
             continue
-        list_lines = [l for l in lines if re.match(r'^[\-\*•]\s', l)]
-        head_lines = [l for l in lines if l.startswith("##")]
-        if head_lines and len(head_lines) == len(lines):
-            flush_list()
-            for hl in head_lines:
-                heading_text = hl.lstrip("#").strip()
-                out_parts.append(
-                    f'<h4 style="font-size:17px;font-weight:700;'
-                    f'color:{PALETTE["accent"]};margin:18px 0 6px 0;">'
-                    f'{linkify_escaped(html.escape(heading_text))}</h4>'
+
+        paragraph_lines: list[str] = []
+        list_items: list[str] = []
+
+        def flush_paragraph() -> None:
+            nonlocal paragraph_lines
+            if not paragraph_lines:
+                return
+            joined = "<br>\n".join(escape_then_linkify(line) for line in paragraph_lines)
+            html_blocks.append(f'<p style="margin:0 0 14px 0;line-height:1.7;">{joined}</p>')
+            paragraph_lines = []
+
+        def flush_list() -> None:
+            nonlocal list_items
+            if not list_items:
+                return
+            items = "".join(f'<li style="margin-bottom:6px;">{item}</li>' for item in list_items)
+            html_blocks.append(
+                f'<ul style="margin:0 0 14px 0;padding-left:22px;">{items}</ul>'
+            )
+            list_items = []
+
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                flush_paragraph()
+                flush_list()
+                continue
+
+            subhead_match = SUBHEAD_RE.match(line)
+            bullet_match = BULLET_LINE_RE.match(line)
+
+            if subhead_match:
+                flush_paragraph()
+                flush_list()
+                html_blocks.append(
+                    f'<div class="entry-subhead">{escape_then_linkify(subhead_match.group(1).strip())}</div>'
                 )
-        elif list_lines:
+                continue
+
+            if bullet_match:
+                flush_paragraph()
+                list_items.append(escape_then_linkify(bullet_match.group(1).strip()))
+                continue
+
             flush_list()
-            for ll in lines:
-                clean = re.sub(r'^[\-\*•]\s*', '', ll).strip()
-                list_buffer.append(linkify_escaped(html.escape(clean)))
-            flush_list()
-        else:
-            flush_list()
-            inner = "<br>\n".join(
-                linkify_escaped(html.escape(ll)) for ll in lines
-            )
-            out_parts.append(
-                f'<p style="margin:0 0 14px 0;line-height:1.7;">{inner}</p>'
-            )
-    flush_list()
-    return "\n".join(out_parts)
+            paragraph_lines.append(line)
+
+        flush_paragraph()
+        flush_list()
+
+    return "\n".join(html_blocks)
 
 
-def make_anchor(title: str, seen: dict) -> str:
-    slug = re.sub(r"[^\w\s-]", "", title.lower())
-    slug = re.sub(r"[\s_]+", "-", slug).strip("-")[:60] or "item"
-    n = seen.get(slug, 0) + 1
-    seen[slug] = n
-    return slug if n == 1 else f"{slug}-{n}"
+def build_image_html(image_path: str, title: str) -> str:
+    """
+    Current local workflow:
+    - trust the CSV Image value
+    - emit the image block directly
+    - do not validate the file on disk here
 
-
-def build_image_html(image_path: str, title: str, images_dir: Path) -> str:
+    Server migration note:
+    - restore path/file validation when the pipeline runs in a fixed hosted environment
+    """
     if not image_path or not image_path.strip():
         return ""
-    img_file = images_dir / image_path.strip()
-    if not img_file.exists():
-        print(
-            f"  [WARN] Image not found: {img_file} "
-            f"(item '{title}'). Skipping image.",
-            file=sys.stderr,
-        )
-        return ""
-    alt = html.escape(title)
-    src = image_path.strip()
+
+    src = html.escape(image_path.strip(), quote=True)
+    alt = html.escape(title, quote=True)
+
     return (
         f'<div class="item-image">'
-        f'<a href="../Images/{src}" target="_blank">'
-        f'<img src="../Images/{src}" alt="{alt}" width="580" style="max-width:100%;">'
+        f'<a href="{src}" target="_blank" rel="noopener noreferrer">'
+        f'<img src="{src}" alt="{alt}" width="580" style="max-width:100%;">'
         f'</a></div>'
     )
 
 
-def compile_events(issue_date: str) -> int:
-    images_dir = PROJ_DIR / "Images"
-
+def read_rows() -> list[tuple[int, dict[str, str]]]:
     if not INPUT_CSV.exists():
         print(f"ERROR: Input CSV not found: {INPUT_CSV}", file=sys.stderr)
-        return 1
+        return []
 
-    rows = []
+    rows: list[tuple[int, dict[str, str]]] = []
     try:
         with open(INPUT_CSV, newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             if reader.fieldnames is None:
                 print("ERROR: events_data.csv appears empty or has no header row.", file=sys.stderr)
-                return 1
+                return []
+
             required_cols = {"Title", "Body", "Starts", "Ends"}
             actual_cols = set(reader.fieldnames)
             missing = required_cols - actual_cols
             if missing:
                 print(
-                    f"ERROR: events_data.csv is missing required columns: "
+                    "ERROR: events_data.csv is missing required columns: "
                     f"{', '.join(sorted(missing))}\n"
                     f"  Found columns: {', '.join(sorted(actual_cols))}\n"
-                    f"  Fix: Re-export from Chucks-list-MASTER.ods and re-run preprocess.",
+                    "  Fix: Re-export from Chucks-list-MASTER.ods and re-run preprocess.",
                     file=sys.stderr,
                 )
-                return 1
+                return []
+
             for i, row in enumerate(reader, start=2):
                 rows.append((i, row))
-    except Exception as e:
-        print(f"ERROR reading {INPUT_CSV}: {e}", file=sys.stderr)
+    except Exception as exc:
+        print(f"ERROR reading {INPUT_CSV}: {exc}", file=sys.stderr)
+        return []
+
+    return rows
+
+
+def group_rows(
+    rows: list[tuple[int, dict[str, str]]]
+) -> list[tuple[str, list[tuple[int, dict[str, str]]]]]:
+    grouped: dict[str, list[tuple[int, dict[str, str]]]] = {name: [] for name in SECTION_ORDER}
+
+    for row_num, row in rows:
+        raw_section = (row.get("Section") or "").strip()
+        section = SECTION_ALIASES.get(raw_section, raw_section)
+        title = (row.get("Title") or "").strip()
+
+        if not title:
+            print(
+                f"  [WARN] Row {row_num}: field 'Title' is empty. Fix: enter a title. Item skipped.",
+                file=sys.stderr,
+            )
+            continue
+
+        # Default empty/unknown sections to Single Events
+        if not section:
+            section = "Single Events"
+
+        if section not in SECTION_ORDER:
+            print(
+                f"  [WARN] Row {row_num}: field 'Section' has value '{raw_section}' for item '{title}'. "
+                f"Fix: use one of: {', '.join(SECTION_ORDER)}. Item skipped.",
+                file=sys.stderr,
+            )
+            continue
+
+        grouped[section].append((row_num, row))
+
+    return [(section, grouped[section]) for section in SECTION_ORDER if grouped[section]]
+
+
+def compile_events(issue_date: str) -> int:
+    rows = read_rows()
+    if rows is None:
         return 1
 
     if not rows:
         print(
             f"  [WARN] events_data.csv has no data rows for issue date {issue_date}. "
-            f"The output will be an empty events email.",
+            "The output will be an empty events email.",
             file=sys.stderr,
         )
 
-    # Sort events by start date
-    def sort_key(item):
-        _, r = item
-        return (r.get("Starts") or "9999-99-99")
+    def sort_key(item: tuple[int, dict[str, str]]) -> tuple[str, str]:
+        _, row = item
+        return ((row.get("Starts") or "9999-99-99"), (row.get("Title") or "").strip().lower())
 
     rows.sort(key=sort_key)
+    grouped_sections = group_rows(rows)
 
-    toc_entries = []
-    body_blocks = []
-    seen_anchors: dict = {}
+    seen_anchors: dict[str, int] = {}
+    item_anchor_map: dict[tuple[str, int], str] = {}
 
-    for row_num, row in rows:
-        title    = (row.get("Title") or "").strip()
-        body_raw = (row.get("Body") or "").strip()
-        starts   = (row.get("Starts") or "").strip()
-        ends     = (row.get("Ends") or "").strip()
-        location = (row.get("Location") or "").strip()
-        contact  = (row.get("Contact") or "").strip()
-        phone    = (row.get("Phone") or "").strip()
-        image    = (row.get("Image") or "").strip()
+    for section_name, items in grouped_sections:
+        for row_num, row in items:
+            title = (row.get("Title") or "").strip()
+            item_anchor_map[(section_name, row_num)] = make_anchor(title, seen_anchors)
 
-        if not title:
-            print(f"  [WARN] Row {row_num}: empty Title, skipping.", file=sys.stderr)
-            continue
+    toc_lines: list[str] = []
+    body_blocks: list[str] = []
 
-        anchor = make_anchor(title, seen_anchors)
-        toc_label = title if not starts else f"{title} ({starts})"
-        toc_entries.append((anchor, toc_label))
+    for section_name, items in grouped_sections:
+        toc_lines.append(f'<li class="toc-section">{html.escape(section_name)}</li>')
+        for row_num, row in items:
+            title = (row.get("Title") or "").strip()
+            starts = (row.get("Starts") or "").strip()
+            anchor = item_anchor_map[(section_name, row_num)]
+            toc_label = title if not starts else f"{title} ({starts})"
+            toc_lines.append(f'<li><a href="#{anchor}">{html.escape(toc_label)}</a></li>')
 
-        meta_parts = []
-        if starts and ends and starts != ends:
-            meta_parts.append(f"Dates: {html.escape(starts)} – {html.escape(ends)}")
-        elif starts:
-            meta_parts.append(f"Date: {html.escape(starts)}")
-        if location:
-            meta_parts.append(f"Location: {html.escape(location)}")
-        if contact:
-            meta_parts.append(f"Contact: {html.escape(contact)}")
-        if phone:
-            meta_parts.append(f"Phone: {html.escape(phone)}")
-        meta_html = " &nbsp;|&nbsp; ".join(meta_parts)
-
-        body_html  = render_body(body_raw)
-        image_html = build_image_html(image, title, images_dir)
-
-        body_blocks.append(
-            f'<a name="{anchor}"></a>'
-            f'<div class="item-block">'
-            f'  <div class="item-title">{html.escape(title)}</div>'
-            f'  <div class="item-meta">{meta_html}</div>'
-            f'  <div class="item-body">{body_html}</div>'
-            f'  {image_html}'
-            f'</div>'
-            f'<hr class="section-rule">'
-        )
-
-    toc_li = "\n".join(
-        f'<li><a href="#{anchor}">{html.escape(label)}</a></li>'
-        for anchor, label in toc_entries
-    )
     toc_html = (
         f'<div class="toc-box">'
         f'<h2>Upcoming Events</h2>'
-        f'<ul style="list-style:none;padding-left:0;">{toc_li}</ul>'
+        f'<ul style="list-style:none;padding-left:0;">{"".join(toc_lines)}</ul>'
         f'</div>'
     )
+
+    for section_name, items in grouped_sections:
+        body_blocks.append(f'<div class="section-label">{html.escape(section_name)}</div>')
+
+        for row_num, row in items:
+            title = (row.get("Title") or "").strip()
+            body_raw = (row.get("Body") or "").strip()
+            starts = (row.get("Starts") or "").strip()
+            ends = (row.get("Ends") or "").strip()
+            location = (row.get("Location") or "").strip()
+            contact = (row.get("Contact") or "").strip()
+            phone = (row.get("Phone") or "").strip()
+            image = (row.get("Image") or "").strip()
+
+            anchor = item_anchor_map[(section_name, row_num)]
+
+            meta_parts = []
+            if starts and ends and starts != ends:
+                meta_parts.append(f"Dates: {html.escape(starts)} – {html.escape(ends)}")
+            elif starts:
+                meta_parts.append(f"Date: {html.escape(starts)}")
+            if location:
+                meta_parts.append(f"Location: {html.escape(location)}")
+            if contact:
+                meta_parts.append(f"Contact: {html.escape(contact)}")
+            if phone:
+                meta_parts.append(f"Phone: {html.escape(phone)}")
+            meta_html = " &nbsp;|&nbsp; ".join(meta_parts)
+
+            body_html = render_body(body_raw)
+            image_html = build_image_html(image, title)
+
+            body_blocks.append(
+                f'<div class="item-block" id="{anchor}">'
+                f'  <div class="item-title">{html.escape(title)}</div>'
+                f'  <div class="item-meta">{meta_html}</div>'
+                f'  <div class="item-body">{body_html}</div>'
+                f'  {image_html}'
+                f'</div>'
+                f'<hr class="section-rule">'
+            )
 
     full_html = textwrap.dedent(f"""\
     <!DOCTYPE html>
@@ -314,16 +464,15 @@ def compile_events(issue_date: str) -> int:
         staging_copy.write_text(full_html, encoding="utf-8")
         print(f"  [OK] Events HTML written: {OUTPUT_HTML}")
         print(f"  [OK] Events staging copy: {staging_copy}")
-    except Exception as e:
-        print(f"ERROR writing output: {e}", file=sys.stderr)
+    except Exception as exc:
+        print(f"ERROR writing output: {exc}", file=sys.stderr)
         return 1
 
     return 0
 
 
 if __name__ == "__main__":
-    import argparse
-    p = argparse.ArgumentParser(description="Compile events HTML output.")
-    p.add_argument("--issue-date", required=True, help="Issue date YYYY-MM-DD")
-    args = p.parse_args()
+    parser = argparse.ArgumentParser(description="Compile events HTML output.")
+    parser.add_argument("--issue-date", required=True, help="Issue date YYYY-MM-DD")
+    args = parser.parse_args()
     sys.exit(compile_events(args.issue_date))
