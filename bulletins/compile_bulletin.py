@@ -543,7 +543,7 @@ def render_body(raw_text: str) -> str:
 def read_rows() -> list[tuple[int, dict[str, str]]]:
     if not INPUT_CSV.exists():
         print(f"ERROR: Input CSV not found: {INPUT_CSV}", file=sys.stderr)
-        return []
+        return None  # None = hard error (missing file)
 
     try:
         with open(INPUT_CSV, newline="", encoding="utf-8") as f:
@@ -551,7 +551,7 @@ def read_rows() -> list[tuple[int, dict[str, str]]]:
             required_cols = {"Title", "Body", "Section", "Image"}
             if reader.fieldnames is None:
                 print("ERROR: bulletins_data.csv appears empty or has no header row.", file=sys.stderr)
-                return []
+                return None
 
             actual_cols = set(reader.fieldnames)
             missing = required_cols - actual_cols
@@ -563,12 +563,12 @@ def read_rows() -> list[tuple[int, dict[str, str]]]:
                     "  Fix: Re-run preprocess_bulletin_text.py after correcting the source CSV.",
                     file=sys.stderr,
                 )
-                return []
+                return None
 
             return [(i, row) for i, row in enumerate(reader, start=2)]
     except Exception as exc:
         print(f"ERROR reading {INPUT_CSV}: {exc}", file=sys.stderr)
-        return []
+        return None
 
 
 def group_rows(rows: list[tuple[int, dict[str, str]]]) -> list[tuple[str, list[tuple[int, dict[str, str]]]]]:
@@ -865,8 +865,16 @@ def build_full_html(
 
 def compile_bulletins(issue_date: str, top_callout: str, bottom_callout: str) -> int:
     rows = read_rows()
-    if not rows:
+    if rows is None:
+        # Hard error: CSV missing or structurally broken
         return 1
+    if not rows:
+        # Expected: all items excluded by date filter — not an error
+        print(
+            f"  [OK] Bulletin Compile: 0 items passed date filter for {issue_date}. "
+            f"No HTML written (nothing to publish)."
+        )
+        return 0
 
     grouped_sections = group_rows(rows)
     item_anchor_seen: dict[str, int] = {}
