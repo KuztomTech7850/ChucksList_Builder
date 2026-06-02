@@ -21,6 +21,7 @@ This document covers the *why* behind every technical decision.
 - [CLI Message Tags](#cli-message-tags)
 - [Bug History](#bug-history)
 - [Open Punch List](#open-punch-list)
+- [Migration Path](#migration-path-local-cli--cpanel--web-gui)
 - [Engineering Standards](#engineering-standards)
 - [What Not to Do](#what-not-to-do)
 
@@ -361,6 +362,193 @@ CSV-diff version for now; replace with SQL query at migration.
 - P4-A: Interactive stage-confirm loop in CLI
 - P4-B: Click-tracking stubs and error trend logging
 - P4-C: Full layout/grouping/rotation refinement using SQL queries
+
+---
+
+---
+
+## Migration Path: Local CLI → cPanel → Web GUI
+
+This section documents the three-phase plan and the concrete engineering
+work required at each transition. It is the authoritative reference for
+anyone executing Phase 2 or planning Phase 3.
+
+---
+
+### Phase 1 — Local CLI (current production)
+
+The pipeline runs on a local Windows machine. One command produces both
+HTML emails. **This is production until Phase 2 is tested and verified
+equivalent.**
+
+Nothing in Phase 1 should be changed to accommodate Phase 2 or 3.
+The local pipeline is the fallback if server deployment fails.
+
+---
+
+### Phase 2 — cPanel Migration (near term)
+
+**Goal:** Run the identical Python pipeline on the cPanel server.
+Same behavior, same output, new hosting environment. No new features.
+
+#### Server environment (confirmed 2026-06-02)
+
+| Item | Value |
+|---|---|
+| Host | server.cortezweb.com |
+| OS | CentOS Linux 7.9 (CloudLinux ELS) |
+| Architecture | x86_64 |
+| cPanel version | 110.0 (build 124) |
+| Shell access | SSH, user `mcafeefa`, home `/home/mcafeefa` |
+| Python 3 on system PATH | ❌ Not available (`python3` not found) |
+| Python 3 via CloudLinux alt | ✅ `/opt/alt/python311/bin/python3` — version 3.11.9 |
+| Cron daemon | ✅ `crond` running — scheduled builds are possible |
+| Console encoding | UTF-8 (`LANG=en_US.UTF-8`) |
+| MySQL / MariaDB | 10.6.19 — available for Phase 3 |
+
+#### Windows-specific assumptions that break on the server
+
+Every item below must be addressed before the pipeline can run on cPanel.
+
+| Assumption | Local behavior | Server behavior | Fix |
+|---|---|---|---|
+| `py` launcher | `py Chucks_List_Builder.py` works on Windows | `py` does not exist on Linux | Use explicit Python path (see virtualenv setup below) |
+| `python3` on PATH | Not used locally | Also not on PATH on this server | Use virtualenv; invoke via `~/virtualenv/chuckslist/bin/python` |
+| `subprocess.Popen('code "..."', shell=True)` | Opens VS Code on Windows | `code` does not exist on server; call will silently fail or error | Always pass `--no-open-vscode` on server; gate the Popen call on platform |
+| `pathlib.Path` separator | Emits backslashes on Windows (mitigated by `to_web_path()`) | Emits forward slashes natively — no issue | No change needed; `to_web_path()` is still correct and should remain |
+| Console encoding cp1252 | Possible on Windows (BUG-009 fixed known cases) | UTF-8 natively — no cp1252 risk | No change needed |
+| Interactive callout wizard (`input()`) | Works in Windows terminal | Works in SSH terminal; **does not work in cron** | Pass `--callout` and `--bottom-callout` as CLI flags for any cron-triggered build; wizard is only for interactive use |
+| VS Code HTML preview | Operator reviews output in VS Code before upload | No VS Code on server | Operator downloads HTML via SFTP or cPanel File Manager for review |
+
+#### Phase 2 server setup — step by step
+
+**Step 1 — Upload the repository**
+
+Option A (preferred): Clone via Git if Git is available on the server:
+```bash
+cd /home/mcafeefa
+git clone https://github.com/KuztomTech7850/ChucksList_Builder.git
+```
+
+Option B: Upload via SFTP or cPanel File Manager and extract.
+
+Confirm the repo root is at `/home/mcafeefa/ChucksList_Builder/`.
+
+**Step 2 — Create a Python virtualenv**
+
+```bash
+/opt/alt/python311/bin/python3 -m venv /home/mcafeefa/virtualenv/chuckslist
+source /home/mcafeefa/virtualenv/chuckslist/bin/activate
+python --version   # should report Python 3.11.9
+```
+
+The pipeline uses only the Python standard library (`argparse`, `csv`,
+`pathlib`, `subprocess`, `re`, `logging`, `datetime`, `urllib.parse`).
+No `pip install` step is required.
+
+Deactivate when done:
+```bash
+deactivate
+```
+
+**Step 3 — Verify the pipeline resolves paths correctly**
+
+```bash
+cd /home/mcafeefa/ChucksList_Builder
+/home/mcafeefa/virtualenv/chuckslist/bin/python Chucks_List_Builder.py --help
+```
+
+Expected: argparse help text. Any `ModuleNotFoundError` or path error
+means the repo layout is wrong — confirm the working directory.
+
+**Step 4 — Place CSV exports on the server**
+
+Before running a build, the operator must upload both CSV exports:
+- `Bulletins.csv` → `/home/mcafeefa/ChucksList_Builder/ChucksBulletin/bulletins/`
+- `Events.csv` → `/home/mcafeefa/ChucksList_Builder/ChucksEvents/events/`
+
+Upload via SFTP (FileZilla or equivalent) or cPanel File Manager.
+
+**Step 5 — Run the build interactively (first test)**
+
+```bash
+cd /home/mcafeefa/ChucksList_Builder
+/home/mcafeefa/virtualenv/chuckslist/bin/python Chucks_List_Builder.py \
+  --issue-date 2026-06-07 \
+  --callout "Your callout text here." \
+  --no-open-vscode
+```
+
+`--no-open-vscode` is **mandatory** on the server. `--callout` is
+required for any non-interactive invocation (cron or script).
+
+**Step 6 — Retrieve the output HTML**
+
+After a successful build, download via SFTP:
+- `ChucksBulletin/chucks_bulletin_final_output.html`
+- `ChucksEvents/chucks_events_final_output.html`
+
+Then upload to Zoho Campaigns as normal.
+
+**Step 7 — Optional: cron-triggered build**
+
+If the operator wants the build to run on a schedule, add a cPanel Cron
+job (`crond` is confirmed running). Example for every Tuesday at 8 AM
+server time:
+0 8 * * 2 cd /home/mcafeefa/ChucksList_Builder && /home/mcafeefa/virtualenv/chuckslist/bin/python Chucks_List_Builder.py --issue-date $(date +%Y-%m-%d) --callout "This week's issue." --no-open-vscode >> /home/mcafeefa/ChucksList_Builder/System/logs/cron.log 2>&1
+
+text
+
+Note: cron does not run the callout wizard. `--callout` must always be
+provided. The issue date in a cron context is the run date — confirm
+this matches the intended publication date.
+
+#### Phase 2 acceptance criteria
+
+The migration is considered complete when:
+- [ ] Pipeline runs on the server without error against real CSV exports
+- [ ] Output HTML is visually identical to a local build for the same CSV input
+- [ ] `--no-open-vscode` confirmed working (no errors, no VS Code attempt)
+- [ ] Log file written correctly to `System/logs/` with `--log-to-file`
+- [ ] BUG-017 (nested output folder) resolved before or during migration
+- [ ] Operator has confirmed the SFTP retrieval + Zoho upload workflow
+
+**The local CLI pipeline remains production until all acceptance criteria
+are met and the operator explicitly signs off.**
+
+---
+
+### Phase 3 — Web GUI (long term)
+
+A browser-based interface for staff to manage submissions and generate
+email editions without a terminal or CSV.
+
+#### Architecture decision — language for Phase 3
+
+The pipeline is currently Python. The server has PHP 8.3 natively
+integrated with Apache/cPanel, which would require no additional runtime
+setup. Both are viable for the Phase 3 backend.
+
+| Option | Pros | Cons |
+|---|---|---|
+| **Python (Flask or FastAPI via WSGI)** | Reuse existing pipeline logic directly; no rewrite of preprocess/compile | Requires WSGI configuration in cPanel (Python App setup); slightly more cPanel config |
+| **PHP** | Native to Apache/cPanel; zero additional runtime config; cPanel MySQL integration is seamless | Full rewrite of all pipeline logic in PHP; no code reuse from current scripts |
+
+**Decision:** Deferred. Revisit when Phase 2 is stable. Either path is
+valid — the choice will depend on operator preference and available
+development resources at that time. Document the decision here when made.
+
+#### Phase 3 scope (preliminary)
+
+- Staff login (session-based auth)
+- Submission entry form (replaces Google Sheets + CSV export)
+- MySQL/MariaDB backend (confirmed available: MariaDB 10.6.19)
+- Build trigger via web UI (replaces CLI command)
+- Output preview in browser before Zoho upload
+- CSV pipeline retired when server version is proven stable
+
+**Timeline:** Several months out. No Phase 3 work begins until Phase 2
+acceptance criteria are met.
 
 ---
 

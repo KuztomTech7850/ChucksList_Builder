@@ -68,6 +68,16 @@
 | **Symptom** | When `--log-to-file` is used, the build log is written to `ChucksList_Builder/logs/` (repo root). The operator moved the logs folder to `ChucksList_Builder/System/logs/`. Logs either land in the wrong place or a new `logs/` directory is silently created at repo root. |
 | **Cause / Fix** | `setup_logging()` hardcodes `logs_dir = PROJ_DIR / "logs"`. Change to `PROJ_DIR / "System" / "logs"`. One-line fix. |
 
+### BUG-024
+| Field | Value |
+|---|---|
+| **ID** | BUG-024 |
+| **Title** | `INTERMEDIATE_CSV` and `OUTPUT_FILES` paths resolve to non-existent repo-root subdirectories |
+| **Status** | Open |
+| **Area** | `Chucks_List_Builder.py` |
+| **Symptom** | On every build, two phantom directories (`ChucksList_Builder/bulletins/` and `ChucksList_Builder/events/`) are created at repo root. The CSV→HTML cross-validation silently finds nothing because `INTERMEDIATE_CSV` and `OUTPUT_FILES` point there instead of to `ChucksBulletin/bulletins/` and `ChucksEvents/events/`. Validation always reports "no data to compare" — a false pass. |
+| **Cause / Fix** | `PROJ_DIR` in the entry point resolves to the repo root. `INTERMEDIATE_CSV` and `OUTPUT_FILES` are defined as `PROJ_DIR / "bulletins" / ...` and `PROJ_DIR / "events" / ...`, which miss the `ChucksBulletin/` and `ChucksEvents/` parent folders. Fix: change both dicts to `PROJ_DIR / "ChucksBulletin" / "bulletins" / ...` and `PROJ_DIR / "ChucksEvents" / "events" / ...`. Four path corrections in `Chucks_List_Builder.py`. |
+
 ---
 
 ## Deferred — Post-Phase 2

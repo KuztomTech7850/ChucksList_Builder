@@ -60,11 +60,11 @@ Full pre-run checklist and CLI flag reference: [System/SYSTEM_README.md](System/
 
 | # | Goal | Status |
 |---|---|---|
-| **1** | **Refine all four primary documentation files** — README, SYSTEM_README, ENGINEER_GUIDE, BUG_LIST accurately reflect the current pipeline, short-term cPanel migration plan, and long-term GUI vision. | 🔄 **Active** |
-| 2 | **Validate files and plan cPanel migration** — Identify all files, paths, configs, and Windows-specific assumptions that must change for a faithful server-side deployment. | ⬜ Next |
+| **1** | **Refine all four primary documentation files** — README, SYSTEM_README, ENGINEER_GUIDE, BUG_LIST accurately reflect the current pipeline, short-term cPanel migration plan, and long-term GUI vision. | ✅ Complete |
+| **2** | **Validate files and plan cPanel migration** — Identify all files, paths, configs, and Windows-specific assumptions that must change for a faithful server-side deployment. Document migration path in ENGINEER_GUIDE. | 🔄 **Active** |
 | 3 | **Execute migration to cPanel** — Move the pipeline to the server, keep behavior identical to local, document any differences. | ⬜ Staged |
 | 4 | **BUG-017 — Fix nested output folder** — Resolve the `ChucksBulletin/ChucksBulletin/` double-nesting in both compilers. | ⬜ Staged |
-| 5 | **Open bugs — BUG-018, BUG-019, BUG-023** — Section sort order, single-item TOC suppression, log path correction. | ⬜ Staged |
+| 5 | **Open bugs — BUG-018, BUG-019, BUG-023, BUG-024** — Section sort order, single-item TOC suppression, log path correction, cross-validation path fix. | ⬜ Staged |
 
 ---
 
@@ -144,6 +144,7 @@ text
 | Nested output folders (BUG-017) | 🔄 In Progress |
 | Section ordering by size (BUG-018) | ⬜ Planned |
 | Log path correction (BUG-023) | ⬜ Open |
+| Cross-validation path fix (BUG-024) | ⬜ Planned |
 | cPanel migration | ⬜ Next phase |
 | Web GUI | ⬜ Long term |
 
