@@ -1,0 +1,1043 @@
+# Chuck's List Builder — Engineer Guide
+
+**Version:** 1.0 — June 2026
+**System:** `C:\Users\Travis\Desktop\ChucksList\ChucksList_Builder`
+**Repo:** [https://github.com/KuztomTech7850/ChucksList_Builder](https://github.com/KuztomTech7850/ChucksList_Builder)
+**Status:** Production pipeline — stabilization phase
+
+This guide defines how the Chuck's List Builder **should** function. It is a
+specification, not a log. Use it to evaluate any proposed change, diagnose a
+misbehaving run, or onboard a new engineer without repeating lessons already
+learned. It does not document what is currently broken — it documents the
+target state every script should conform to.
+
+***
+
+## Table of Contents
+
+1. [System Purpose](#1-system-purpose)
+2. [Architecture Overview](#2-architecture-overview)
+3. [The Two-Pipeline Rule](#3-the-two-pipeline-rule)
+4. [Orchestration Entrypoint](#4-orchestration-entrypoint)
+5. [Preprocess Stage Specification](#5-preprocess-stage-specification)
+   - 5.1 [Input Contract](#51-input-contract)
+   - 5.2 [Date Parsing](#52-date-parsing)
+   - 5.3 [Inclusion Rules](#53-inclusion-rules)
+   - 5.4 [Validation and Error Reporting](#54-validation-and-error-reporting)
+   - 5.5 [Markdown Handling](#55-markdown-handling)
+   - 5.6 [Output Contract](#56-output-contract)
+   - 5.7 [Exit Codes](#57-exit-codes)
+6. [Compile Stage Specification](#6-compile-stage-specification)
+   - 6.1 [Link Safety Pipeline](#61-link-safety-pipeline)
+   - 6.2 [Image Rendering](#62-image-rendering)
+   - 6.3 [Body Text Rendering](#63-body-text-rendering)
+   - 6.4 [Table of Contents](#64-table-of-contents)
+   - 6.5 [Callout Boxes](#65-callout-boxes)
+   - 6.6 [Section Ordering](#66-section-ordering)
+   - 6.7 [Asset Path Normalization](#67-asset-path-normalization)
+7. [HTML Template Specification](#7-html-template-specification)
+   - 7.1 [Color Palette](#71-color-palette)
+   - 7.2 [Typography](#72-typography)
+   - 7.3 [Layout Structure](#73-layout-structure)
+   - 7.4 [Dark Mode](#74-dark-mode)
+8. [Accessibility Requirements](#8-accessibility-requirements)
+9. [Zoho Campaigns Compatibility](#9-zoho-campaigns-compatibility)
+10. [Source Data Contract](#10-source-data-contract)
+    - 10.1 [Bulletins CSV](#101-bulletins-csv)
+    - 10.2 [Events CSV](#102-events-csv)
+    - 10.3 [Multi-Image Fields](#103-multi-image-fields)
+    - 10.4 [Markdown in Body Text](#104-markdown-in-body-text)
+11. [CLI Specification](#11-cli-specification)
+12. [Logging and Operator Guidance](#12-logging-and-operator-guidance)
+13. [Path Anchoring Rule](#13-path-anchoring-rule)
+14. [Testing Checklist](#14-testing-checklist)
+15. [What Must Never Change](#15-what-must-never-change)
+16. [Appendix A — Confirmed Bug History](#appendix-a--confirmed-bug-history)
+17. [Appendix B — Punch-List](#appendix-b--punch-list)
+
+***
+
+## 1. System Purpose
+
+Chuck's List is a community newsletter serving Montezuma County and
+surrounding communities in southwestern Colorado. It distributes two
+editions per issue cycle:
+
+- **Bulletins** — housing opportunities, swap market listings, local services,
+  community announcements, and urgent notices
+- **Events** — single events, recurring programs, and hosts with multiple listings
+
+The builder transforms data entered by staff into two complete HTML email
+files ready for upload to Zoho Campaigns. The operator's only required action
+on build day is:
+
+```bash
+py Chucks_List_Builder.py --issue-date YYYY-MM-DD
+```
+
+The system must require no HTML, CSS, or Python knowledge from the operator.
+It must guide rather than just fail. It must produce output that is readable
+by elderly subscribers and safe for Zoho's email delivery infrastructure.
+
+***
+
+## 2. Architecture Overview
+
+```
+Chucks-list-MASTER.ods
+        │
+        ├── Export → Bulletins.csv ──► preprocess_bulletin_text.py
+        │                                        │
+        │                                        ▼
+        │                              bulletins_data.csv
+        │                                        │
+        │                                        ▼
+        │                             compile_bulletin.py
+        │                                        │
+        │                                        ▼
+        │                    chucks_bulletin_final_output.html
+        │                                        │
+        │                                        ▼
+        │                               ChucksBulletin/  ──► Zoho Campaigns
+        │
+        └── Export → Events.csv ──► preprocess_events_text.py
+                                              │
+                                              ▼
+                                       events_data.csv
+                                              │
+                                              ▼
+                                    compile_events.py
+                                              │
+                                              ▼
+                          chucks_events_final_output.html
+                                              │
+                                              ▼
+                                     ChucksEvents/  ──► Zoho Campaigns
+```
+
+Every stage is a separate Python subprocess. The entrypoint
+(`Chucks_List_Builder.py`) orchestrates them in order and surfaces failures
+immediately. It never collapses or merges the two pipelines.
+
+***
+
+## 3. The Two-Pipeline Rule
+
+Bulletins and Events are separate pipelines. This rule is permanent.
+
+**Why:** The two editions have different data shapes, different inclusion
+logic, different section structures, and different rendering templates. Merging
+them would create a single fragile script that is harder to debug, harder to
+change independently, and harder for a new engineer to understand.
+
+**Enforcement:**
+- Bulletins and Events share no intermediate files.
+- Bulletins and Events share no Python modules.
+- `Chucks_List_Builder.py` runs them as independent subprocess chains.
+- A failure in one pipeline does not run or complete the other.
+
+Do not introduce shared imports, shared CSV files, or shared rendering
+functions between the two pipelines — even when the code looks identical.
+Duplication here is intentional.
+
+***
+
+## 4. Orchestration Entrypoint
+
+**File:** `Chucks_List_Builder.py`
+
+**Responsibilities:**
+- Parse all CLI flags (see Section 11)
+- Emit `[REMIND]` warnings for any per-issue customization the operator
+  has not set (callout text, bottom callout text)
+- Run each pipeline stage as a subprocess, in order
+- Capture stdout and stderr from each stage and route to the run log
+- Surface `[WARN]`, `[ERROR]`, and `[REMIND]` lines from subprocesses
+- Halt immediately on any non-zero subprocess exit — do not proceed to compile
+  after a failed preprocess
+- Emit a final build summary listing every stage and its result
+- Forward `--callout` and `--bottom-callout` flags to compile stages only
+  (not to preprocess stages)
+- Never forward flags that a subprocess does not accept
+
+**Stage execution order:**
+
+```
+If --issue-type includes bulletins:
+  1. preprocess_bulletin_text.py --issue-date <date>
+  2. compile_bulletin.py --issue-date <date> [--callout ...] [--bottom-callout ...]
+
+If --issue-type includes events:
+  3. preprocess_events_text.py --issue-date <date>
+  4. compile_events.py --issue-date <date> [--callout ...] [--bottom-callout ...]
+```
+
+**Callout reminders:** If `--callout` was not passed, the builder must emit:
+
+```
+[REMIND] No --callout set. Using default bulletin top callout.
+         Edit in Builder or pass: --callout "Your text here"
+```
+
+The default callout text must be shown (first 70 characters) so the operator
+can confirm whether the default is acceptable for this issue.
+
+***
+
+## 5. Preprocess Stage Specification
+
+The preprocess stage is a data validation and filtering pass. It reads the
+raw CSV, applies business rules, and writes a clean intermediate CSV. It never
+renders HTML. It never calls the compiler.
+
+### 5.1 Input Contract
+
+| Property | Requirement |
+|---|---|
+| Encoding | UTF-8 |
+| Delimiter | Comma |
+| Quoting | Double-quoted text (standard CSV) |
+| Line endings | Any — normalized on read |
+| Header row | Required — validated against expected column list |
+| Missing columns | Hard error with fix instruction |
+| Empty rows | Silently skipped |
+
+### 5.2 Date Parsing
+
+All date fields must accept all three formats without configuration:
+
+| Format | Example | Notes |
+|---|---|---|
+| `YYYY-MM-DD` | `2026-06-07` | Canonical ISO — preferred |
+| `M/D/YY` | `6/7/26` | 2-digit year — treated as 20xx |
+| `M/D/YYYY` | `6/7/2026` | 4-digit year — common LibreOffice export |
+
+All three regex patterns must be compiled at module level:
+
+```python
+DATE_RE_ISO   = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+DATE_RE_SHORT = re.compile(r"^(\d{1,2})/(\d{1,2})/(\d{2})$")
+DATE_RE_LONG  = re.compile(r"^(\d{1,2})/(\d{1,2})/(\d{4})$")
+```
+
+`parse_date()` must try all three in order. An unrecognized format is a
+`[WARN]` with the unrecognized value shown and a fix instruction. A date
+that parses but is logically invalid (e.g., month 13) is a `[WARN]`.
+
+**Empty date fields** are a `[WARN]` and the row is skipped. They are never
+silently treated as "no date" or "open-ended."
+
+### 5.3 Inclusion Rules
+
+**Bulletins:**
+```
+Received <= issue_date <= Expires
+```
+
+**Events:**
+```
+Starts <= issue_date <= Expires
+```
+
+Rows outside the date window are **silently excluded** — this is normal
+operation, not a warning. Only rows with missing or invalid dates that
+*cannot be evaluated* produce a warning.
+
+If `Starts > Expires` on an events row, emit a `[WARN]` but still apply
+the inclusion test (both dates were parseable).
+
+### 5.4 Validation and Error Reporting
+
+Every warning and error must include all four of:
+1. Row number (matching the source CSV row, header = row 1)
+2. Field name
+3. The actual bad value (quoted)
+4. An exact fix instruction pointing to `Chucks-list-MASTER.ods`
+
+**Example of correct format:**
+```
+[WARN] Row 14: 'Expires' value '13/5/2026' is not a valid date (month out of range).
+       Fix: Correct the Expires date in Chucks-list-MASTER.ods row 14.
+```
+
+**Example of wrong format (never do this):**
+```
+ValueError: month must be in 1..12
+```
+
+**Error severity:**
+
+| Level | Meaning | Behavior |
+|---|---|---|
+| `[ERROR]` | Data is unsafe to publish | Block entire pipeline, non-zero exit |
+| `[WARN]` | Row has a problem | Skip the row, continue processing others |
+| `[REMIND]` | Operator attention needed | Log only, do not skip or block |
+
+**Bare URL in Body as `[ERROR]`:** A markdown link whose label is a raw URL
+(e.g., `[https://example.com](https://example.com)`) is an error in the
+bulletins pipeline. Zoho cannot click-track such links. The row is blocked.
+
+**Bare email as `[WARN]` with auto-fix:** A bare email address in Body
+(not wrapped in `mailto:`) is auto-converted to `[email](mailto:email)`
+before writing the intermediate CSV. The fix is logged.
+
+### 5.5 Markdown Handling
+
+**Auto-fix (bulletins pipeline):**
+- Bare `www.something.com` → `[www.something.com](https://www.something.com)`
+- Bare `email@domain.com` → `[email@domain.com](mailto:email@domain.com)`
+
+**Validation:**
+- Markdown links must be validated at the segment level: find every
+  `[label](target)` and inspect label and target independently.
+- Do **not** count raw parentheses across the full body field — this
+  produces false positives on valid text that legally contains parentheses
+  (event descriptions, addresses, organizational names).
+- If a label is a raw URL or raw email address, it is an `[ERROR]` in the
+  bulletins pipeline (Zoho click-tracking incompatibility).
+
+**Smart characters:** Normalize curly quotes, em dashes, ellipsis characters,
+and non-breaking spaces to their plain ASCII equivalents before writing the
+intermediate CSV.
+
+**Line endings:** Normalize `\r\n` and `\r` to `\n` on read.
+
+### 5.6 Output Contract
+
+The intermediate CSV must be written with:
+
+```python
+csv.DictWriter(
+    f,
+    fieldnames=OUT_COLS,
+    extrasaction="ignore",
+    quoting=csv.QUOTE_ALL,
+)
+```
+
+`QUOTE_ALL` is mandatory. Without it, multi-line body cells and cells
+containing Markdown link syntax (`[label](url)`) may be written unquoted
+and silently corrupted on read-back by the compiler.
+
+**Bulletins intermediate columns:** `Title`, `Body`, `Received`, `Expires`,
+`Section`, `Image`
+
+**Events intermediate columns:** `Title`, `Body`, `Starts`, `Ends`,
+`Section`, `Image`
+
+Note: The Events source CSV column `Expires` maps to `Ends` in the
+intermediate CSV. The compiler reads `Ends`.
+
+### 5.7 Exit Codes
+
+| Condition | Exit code |
+|---|---|
+| All stages passed, ≥ 1 item written | `0` |
+| Some rows skipped, ≥ 1 item written | `0` with `[WARN]` lines |
+| All rows skipped, 0 items written | **`1`** — this is a build failure |
+| Any `[ERROR]` triggered | **`1`** |
+| Input CSV not found | **`1`** |
+| Output CSV write failed | **`1`** |
+
+A zero-item output that exits `0` is a silent build failure. The entrypoint
+sees a successful subprocess but the compiler produces a blank issue. The
+preprocess stage must own this responsibility and exit non-zero.
+
+***
+
+## 6. Compile Stage Specification
+
+The compile stage reads the clean intermediate CSV and renders the HTML
+email. It never modifies data. It never re-validates dates. It never writes
+any file except the final HTML output.
+
+### 6.1 Link Safety Pipeline
+
+This is the most critical correctness requirement for Zoho compatibility.
+The order of operations is fixed and must never be reversed:
+
+```
+Step 1: protect_markdown_links()
+        Temporarily replace [label](url) with non-HTML placeholders
+        so the escape step cannot corrupt bracket/paren syntax.
+
+Step 2: html.escape()
+        Escape all HTML special characters in the text.
+        This runs AFTER protect, so markdown link syntax is safe.
+
+Step 3: linkify_escaped_text()
+        Convert bare URLs and bare emails in the now-HTML-escaped text
+        into proper <a> tags. This operates on HTML-safe text only.
+
+Step 4: restore_markdown_links()
+        Replace the placeholders from Step 1 with proper <a> tags,
+        using the protected label and URL.
+```
+
+**Why this order matters:** If you escape after linkifying, the `<a href=`
+tags you just created get their angle brackets escaped into `&lt;a href=`.
+If you linkify before protecting, a markdown link like `[click here](https://x.com)`
+gets its parentheses and brackets consumed by the linkifier before the
+markdown renderer sees them.
+
+**MARKDOWN_LINK_RE** must handle both `https://` and `mailto:` targets:
+
+```python
+MARKDOWN_LINK_RE = re.compile(
+    r'\[([^\[\]]+)\]\(((?:https?://|mailto:)[^)]+)\)'
+)
+```
+
+**Trailing punctuation stripping:** When linkifying bare URLs, the `href`
+must not include trailing punctuation (`.`, `,`, `)`, `!`, `?`). Strip
+trailing punctuation from the matched URL before writing it into `href`.
+The punctuation stays in the visible text at its original position.
+
+### 6.2 Image Rendering
+
+Image fields contain 1–3 pipe-separated filenames. The compiler must:
+
+1. Split on `|` and strip whitespace from each part.
+2. Discard any entries beyond `MAX_INLINE_IMAGES = 3` with a `[WARN]`.
+3. Normalize each path with `to_web_path()` (see Section 6.7).
+4. Render one `<img>` tag wrapped in one `<a>` tag per image.
+5. Use the **same normalized path** for both `src` and `href`.
+6. Stack multiple images vertically inside one outer table container.
+
+**Correct output for two images:**
+
+```html
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="width:100%; background-color:#efe8dc; border:1px solid #d9cfc0; margin-top:14px;">
+  <tr>
+    <td style="padding:12px;">
+      <a href="Images/photo1.jpg" target="_blank" rel="noopener noreferrer"
+         style="display:block; text-decoration:none; margin-bottom:12px;">
+        <img src="Images/photo1.jpg"
+             alt="[Title of the post] photo 1"
+             style="display:block; width:100%; max-width:100%; height:auto;">
+      </a>
+      <a href="Images/photo2.jpg" target="_blank" rel="noopener noreferrer"
+         style="display:block; text-decoration:none;">
+        <img src="Images/photo2.jpg"
+             alt="[Title of the post] photo 2"
+             style="display:block; width:100%; max-width:100%; height:auto;">
+      </a>
+    </td>
+  </tr>
+</table>
+```
+
+**Alt text:** For a single image, use the post title. For multiple images,
+append `photo 1`, `photo 2`, etc. Alt text must always be present.
+
+### 6.3 Body Text Rendering
+
+Body text from the intermediate CSV is plain text with optional light
+Markdown. The `render_body()` function transforms it into HTML fragments
+using these rules, in order:
+
+| Source pattern | HTML output |
+|---|---|
+| Blank line (`\n\n`) | Paragraph break — wrap each block in `<p>` |
+| `## Heading text` | `<h3 style="...">Heading text</h3>` |
+| Line starting with `- `, `* `, or `•` | `<ul><li>` block |
+| `[label](https://url)` or `[label](mailto:x)` | `<a href="...">label</a>` |
+| Everything else | Inline text within `<p>` |
+
+**Paragraph wrapping is mandatory.** Bare text without `<p>` tags renders
+inconsistently across email clients. Every text block between blank lines
+must be wrapped.
+
+**No raw HTML passthrough.** Body text must be HTML-escaped before rendering.
+The link safety pipeline (Section 6.1) handles the correct order.
+
+### 6.4 Table of Contents
+
+Every bulletin and events output includes a TOC at the top of the email.
+
+**Requirements:**
+- Every section heading has a corresponding TOC entry.
+- Every TOC entry links to a deterministic anchor (`#section-slug`).
+- Anchors are collision-safe: if two entries would produce the same slug,
+  append `-2`, `-3`, etc.
+- TOC links must land the reader at the **top** of the correct entry —
+  not mid-entry.
+- Section headings in the body must include the matching `id=` attribute.
+
+**TOC text:**
+- Bulletins: "In this Bulletin"
+- Events: "In this Events Edition"
+
+**Planned improvement:** Sections with exactly one item should show only
+the section heading in the TOC, not the individual item entry. Not yet
+implemented — track in punch-list.
+
+### 6.5 Callout Boxes
+
+Both compilers render a callout box at the top and bottom of the email body.
+
+- Default text is hardcoded in the compiler.
+- `--callout` and `--bottom-callout` CLI flags override defaults.
+- The entrypoint passes these flags through to compile stages only.
+- If no override is set, the entrypoint emits a `[REMIND]` before running
+  the compiler (see Section 4).
+- Callout boxes must always render — they are never optional.
+
+### 6.6 Section Ordering
+
+**Bulletins (fixed order — never reorder except Urgent pins first):**
+
+1. Urgent Bulletins — always first when present
+2. Housing Opportunities
+3. Swap Market
+4. Local Services & Help
+5. Community Announcements
+
+The `group_rows()` function must produce this order unconditionally. Sections
+with zero items for a given issue are omitted from both the TOC and the body.
+
+**Planned improvement:** After Urgent, sort remaining sections
+smallest-to-largest by item count for the current issue. Not yet implemented.
+
+**Events (by structural type):**
+
+1. Single Events — one-time entries with no recurring pattern
+2. Hosts with Multiple Events — organizers listing several events
+3. Recurring Events — programs that repeat on a schedule
+
+### 6.7 Asset Path Normalization
+
+All asset paths emitted into HTML `src=` or `href=` attributes must be
+normalized to forward-slash URL syntax. Windows backslash paths are
+invalid in HTML and will cause broken images in some email clients and
+browsers.
+
+**Required helper (both compilers):**
+
+```python
+from pathlib import Path
+from urllib.parse import quote
+
+def to_web_path(path: str | Path) -> str:
+    """Convert any filesystem path to a safe HTML URL path."""
+    return quote(Path(path).as_posix(), safe="/:._-")
+```
+
+This function must be called on every image path before it appears in
+`src=` or `href=`. Both attributes for the same image must use the
+identical output of `to_web_path()`.
+
+**Never** pass a raw `pathlib.Path` object or a string produced by
+`str(Path(...))` directly into an HTML attribute — on Windows, both
+produce backslashes.
+
+***
+
+## 7. HTML Template Specification
+
+The HTML output is a table-based email template. It must render correctly
+in Zoho Campaigns, Gmail, Apple Mail, and Outlook without JavaScript.
+CSS grid and flexbox are not used in the email body.
+
+### 7.1 Color Palette
+
+The palette reflects **Montezuma County / Mesa Verde, Colorado**. It is
+approved and final. Do not introduce new colors.
+
+| Role | Light mode hex | Usage |
+|---|---|---|
+| Page background | `#f5f0e8` | Outermost wrapper |
+| Content background | `#fffdf8` | Main email body |
+| Header background | `#4a3728` | Email header bar |
+| Header text | `#f5ede0` | Header title and subtitle |
+| Section heading background | `#6b4c35` | Section title bars |
+| Section heading text | `#f5ede0` | Section title text |
+| Entry background (odd) | `#faf6ef` | Alternating entry rows |
+| Entry background (even) | `#f0e8d8` | Alternating entry rows |
+| Entry border | `#d9cfc0` | Card border |
+| Image container background | `#efe8dc` | Image block surround |
+| Image container border | `#d9cfc0` | Image block border |
+| Body text | `#2c1f0e` | All body copy |
+| Link color | `#5a3e1b` | Inline links |
+| Callout background | `#e8dcc8` | Callout box |
+| Callout border | `#c4a882` | Callout box border |
+| Urgent section background | `#8b0000` | Urgent Bulletins header |
+| Urgent section text | `#ffffff` | Urgent Bulletins header text |
+
+### 7.2 Typography
+
+| Property | Value |
+|---|---|
+| Body font stack | `Georgia, 'Times New Roman', serif` |
+| Heading font stack | `'Trebuchet MS', Arial, sans-serif` |
+| Body font size | `20px` |
+| Body line-height | `1.75` |
+| Section heading size | `18px`, bold, all-caps letter-spacing |
+| Entry title size | `22px`, bold |
+| TOC font size | `16px` |
+| Minimum text size anywhere | `14px` |
+
+Typography is set for the primary audience: elderly readers who may be
+using default browser zoom. These values must not be reduced. If a design
+change requires smaller text, it is not an acceptable change.
+
+### 7.3 Layout Structure
+
+```
+<body>
+  [outer wrapper table — full width, page background color]
+    [inner content table — max-width 680px, centered]
+      [header row — logo/title bar]
+      [callout row — top callout box]
+      [TOC row — "In this Bulletin" / "In this Events Edition"]
+      [section rows — repeated per section]
+        [section heading bar]
+        [entry rows — repeated per item]
+          [entry title]
+          [entry meta — dates, location, contact]
+          [entry body]
+          [entry image block — if present]
+      [callout row — bottom callout box]
+      [footer row]
+```
+
+Maximum content width: **680px**. This is the standard safe width for email
+clients including Outlook. Content must not overflow this width.
+
+### 7.4 Dark Mode
+
+Both email outputs include a `<style>` block with `@media (prefers-color-scheme: dark)`
+overrides. Dark mode must override:
+
+- Page background → `#1a1008`
+- Content background → `#2a1f10`
+- Body text → `#e8d8c0`
+- Links → `#c8a878`
+- Section heading background → `#8b6b4a`
+- Entry backgrounds → appropriately darkened earth tones
+
+Dark mode is not optional. It was included in the approved design.
+
+***
+
+## 8. Accessibility Requirements
+
+Chuck's List serves a community that includes elderly readers, low-vision
+readers, and readers on aging devices. These requirements are non-negotiable.
+They are constraints, not suggestions.
+
+### Text Size and Spacing
+
+- **Body font size: 20px minimum.** Do not reduce this.
+- **Line height: 1.75 minimum.** Tight leading is hard for elderly readers.
+- **Paragraph spacing:** Visible gap between paragraphs. `margin-bottom: 1em` minimum.
+- **Heading hierarchy:** Entry titles > Section headings > TOC labels.
+  Never skip levels.
+
+### Contrast
+
+- Body text (`#2c1f0e`) on entry background (`#faf6ef`): passes WCAG AA.
+- Do not introduce text-on-background combinations that have not been
+  contrast-checked.
+- Muted or light gray body text is not acceptable at any size.
+
+### Links
+
+- Every link must have a human-readable label. Raw URLs as visible link
+  text are prohibited — they are unreadable when read aloud by screen
+  readers and untrackable by Zoho.
+- `mailto:` links must use a human name or readable email as the label —
+  not the raw address.
+- Links must be visually distinguishable from body text (color + underline
+  or color alone if contrast is sufficient).
+
+### Images
+
+- Every `<img>` must have an `alt` attribute.
+- Decorative images: `alt=""`.
+- Content images: descriptive text matching the post title and image number.
+- Images must never be the sole carrier of important information.
+  Text must always accompany image content.
+
+### Email Client Safety
+
+- No JavaScript. Email clients strip it.
+- No CSS `position: fixed` or `position: absolute`. Email clients ignore or
+  break these.
+- No CSS grid or flexbox in the email body. Use table-based layout.
+- Inline styles on all elements that need consistent rendering across clients.
+  `<style>` blocks are supported in modern clients but may be stripped in
+  older ones — critical layout and color must be inline.
+
+***
+
+## 9. Zoho Campaigns Compatibility
+
+The HTML output is uploaded to Zoho Campaigns as a custom HTML template.
+Zoho imposes specific constraints that the compiler must respect.
+
+### Link Click-Tracking
+
+Zoho wraps every `<a href>` with a tracking redirect. For this to work:
+
+- The `href` value must be a clean, absolute URL or a `mailto:` link.
+- The visible text of the link must **not** be a raw URL. Zoho cannot
+  click-track links where the label and the URL are the same string.
+- Links with backslash paths in `href` may fail tracking silently.
+
+### Safe HTML
+
+- No `<script>` tags.
+- No `<iframe>` tags.
+- No `<form>` elements.
+- No `onload`, `onclick`, or other event attributes.
+- No `data-*` attributes that Zoho might interpret.
+
+### Image Hosting
+
+- Images in the email must be hosted URLs, not local file paths.
+- During development and preview, local `Images/` paths are used for
+  visual confirmation. Before Zoho upload, images must be hosted (e.g.,
+  on mcafeefarm.biz or a CDN) and paths updated.
+- The `to_web_path()` helper produces clean forward-slash paths that are
+  valid once the base URL is prepended.
+
+### Staging Folders
+
+| Edition | Local output | Zoho staging |
+|---|---|---|
+| Bulletins | `bulletins/chucks_bulletin_final_output.html` | `ChucksBulletin/` |
+| Events | `events/chucks_events_final_output.html` | `ChucksEvents/` |
+
+**Do not upload to Zoho if the build log contains any `[ERROR]` lines.**
+
+***
+
+## 10. Source Data Contract
+
+### 10.1 Bulletins CSV
+
+Export from `Chucks-list-MASTER.ods` Bulletins sheet.
+
+| Column | Required | Type | Notes |
+|---|---|---|---|
+| `Received` | Yes | Date | Date item was submitted |
+| `Expires` | Yes | Date | Last issue date to include this item |
+| `Section` | Yes | Text | Must match canonical name or alias |
+| `Title` | Yes | Text | Plain text, no Markdown |
+| `Body` | Yes | Text | Plain text with optional Markdown |
+| `Image` | No | Text | Pipe-separated filename(s) in `Images/` |
+| `notes` | No | Text | Internal only — never rendered |
+
+**Canonical section names and accepted aliases:**
+
+| Canonical | Accepted aliases |
+|---|---|
+| Urgent Bulletins | Urgent, URGENT |
+| Housing Opportunities | Housing, Homes |
+| Swap Market | Swap, For Sale, Trade |
+| Local Services & Help | Services, Help, Local Services |
+| Community Announcements | Announcements, Community |
+
+### 10.2 Events CSV
+
+Export from `Chucks-list-MASTER.ods` Events sheet.
+
+| Column | Required | Type | Notes |
+|---|---|---|---|
+| `Received` | No | Date | Not used for filtering |
+| `Starts` | Yes | Date | First issue date to include |
+| `Expires` | Yes | Date | Last issue date to include (→ `Ends`) |
+| `Section` | No | Text | Used for grouping |
+| `Title` | Yes | Text | Plain text |
+| `Text` | Yes | Text | Plain text with optional Markdown |
+| `Image` | No | Text | Pipe-separated filename(s) in `Images/` |
+| `notes` | No | Text | Internal only — never rendered |
+
+### 10.3 Multi-Image Fields
+
+The `Image` column accepts 1–3 pipe-separated filenames:
+
+```
+Images/photo.jpg
+Images/photo1.jpg|Images/photo2.jpg
+Images/photo1.jpg|Images/photo2.jpg|Images/photo3.jpg
+```
+
+Rules:
+- Each part is trimmed of whitespace before use.
+- Entries beyond index 2 (4th image and beyond) are dropped with a `[WARN]`.
+  The operator is instructed to move extras to cloud storage and share a
+  link in the body text.
+- Each image renders as its own `<img>` and `<a>` pair.
+- Posts with 4 or more images should use cloud storage (e.g., Google Drive,
+  a public album) and include a link in the body text instead.
+
+### 10.4 Markdown in Body Text
+
+Staff are not required to use Markdown. The system handles plain text
+naturally. For staff who do use it:
+
+| Input | Output |
+|---|---|
+| Blank line | New paragraph |
+| `## Heading` | Subheading (`<h3>`) |
+| `- item`, `* item`, `• item` | Bulleted list |
+| `[Label](https://url)` | Hyperlink |
+| `[Label](mailto:email)` | Email link |
+
+**Prohibited patterns (will trigger `[ERROR]` in bulletins pipeline):**
+- `[https://example.com](https://example.com)` — label is a raw URL
+- `[email@example.com](mailto:email@example.com)` — label is a raw email
+
+**Auto-fixed patterns (bulletins pipeline, logged as `[WARN]`):**
+- Bare `email@example.com` → `[email@example.com](mailto:email@example.com)`
+- Bare `www.example.com` → `[www.example.com](https://www.example.com)`
+
+***
+
+## 11. CLI Specification
+
+All flags must be explicitly defined in `argparse`. No flag may be implied,
+guessed from environment variables, or silently ignored.
+
+| Flag | Type | Default | Passed to |
+|---|---|---|---|
+| `--issue-date` | `str` (YYYY-MM-DD) | **required** | All stages |
+| `--issue-type` | `bulletin\|events\|both` | `both` | Entrypoint only (controls which pipelines run) |
+| `--callout` | `str` | None | Compile stages only |
+| `--bottom-callout` | `str` | None | Compile stages only |
+| `--debug` | `store_true` | False | Entrypoint + subprocesses via log level |
+| `--log-to-file` | `store_true` | False | Entrypoint |
+| `--no-open-vscode` | `store_true` | False | Entrypoint |
+
+`--debug` must be defined as:
+```python
+parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+```
+
+It must never be assumed to exist without this declaration. A missing flag
+definition crashes any subprocess call that passes it through.
+
+***
+
+## 12. Logging and Operator Guidance
+
+### Message Levels
+
+| Prefix | Meaning | Color (if terminal supports) |
+|---|---|---|
+| `[OK]` | Stage completed successfully | Green |
+| `[INFO]` | Informational — no action needed | Default |
+| `[REMIND]` | Per-issue customization point — review before sending | Yellow |
+| `[WARN]` | Row skipped — fix in source data | Yellow |
+| `[ERROR]` | Pipeline blocked — must fix before output is usable | Red |
+
+### Required Content of Every WARN and ERROR
+
+```
+[WARN] Row {N}: '{field}' value '{value}' — {description of problem}.
+       Fix: {exact action} in Chucks-list-MASTER.ods row {N}.
+```
+
+Never emit a bare Python exception as operator output. Catch all expected
+failure modes and translate them into actionable messages.
+
+### Build Summary
+
+The entrypoint must emit a build summary at the end of every run:
+
+```
+══════════════════════════════════════════
+  Chuck's List Build Summary — 2026-06-07
+══════════════════════════════════════════
+  [OK]    Bulletins preprocess — 12 items, 2 skipped
+  [OK]    Bulletins compile — chucks_bulletin_final_output.html
+  [OK]    Events preprocess — 8 items, 0 skipped
+  [OK]    Events compile — chucks_events_final_output.html
+══════════════════════════════════════════
+  Build complete. Review any [WARN] lines before uploading to Zoho.
+══════════════════════════════════════════
+```
+
+If any stage failed, the summary must state clearly:
+
+```
+  ⚠ BUILD INCOMPLETE — do not upload partial output to Zoho Campaigns.
+```
+
+***
+
+## 13. Path Anchoring Rule
+
+Every script must resolve its own directory at startup and use that as the
+base for all file paths. This guarantees the pipeline works regardless of
+what directory the operator's terminal is in when they run it.
+
+**Required pattern (every script):**
+
+```python
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJ_DIR   = SCRIPT_DIR.parent  # where needed (one level up from bulletins/ or events/)
+```
+
+**Prohibited patterns:**
+```python
+os.getcwd()           # returns wherever the terminal is — not the script location
+"bulletins/data.csv"  # relative to CWD, not script location
+Path("./output.html") # same problem
+```
+
+All input and output paths in every script must be built from `SCRIPT_DIR`
+or `PROJ_DIR` using the `/` path operator:
+
+```python
+INPUT_CSV  = PROJ_DIR / "Events.csv"
+OUTPUT_CSV = SCRIPT_DIR / "events_data.csv"
+```
+
+***
+
+## 14. Testing Checklist
+
+Run this checklist after any code change before pushing to the repo.
+
+### Syntax
+- [ ] `py -m py_compile bulletins\preprocess_bulletin_text.py && echo OK`
+- [ ] `py -m py_compile bulletins\compile_bulletin.py && echo OK`
+- [ ] `py -m py_compile events\preprocess_events_text.py && echo OK`
+- [ ] `py -m py_compile events\compile_events.py && echo OK`
+- [ ] `py -m py_compile Chucks_List_Builder.py && echo OK`
+
+### Full build run
+- [ ] `py Chucks_List_Builder.py --issue-date YYYY-MM-DD` completes without `[ERROR]`
+- [ ] Build summary shows correct item counts for both pipelines
+- [ ] `[REMIND]` callout warnings appear when `--callout` not passed
+
+### Bulletins output
+- [ ] Open `bulletins/chucks_bulletin_final_output.html` in a browser
+- [ ] TOC links land at the correct entry
+- [ ] Urgent Bulletins appear first (if any)
+- [ ] Section order matches canonical order
+- [ ] Body text is 20px, paragraphs have spacing
+- [ ] Markdown links render as `<a>` tags — not raw `[label](url)` text
+- [ ] Images render and are clickable; no broken image icons
+- [ ] Image `src` and `href` use forward slashes, not backslashes
+- [ ] Multiple images stack vertically (test with a pipe-delimited Image field)
+- [ ] Top and bottom callout boxes appear
+- [ ] Dark mode (simulate in browser DevTools) — colors invert, text remains readable
+
+### Events output
+- [ ] Open `events/chucks_events_final_output.html` in a browser
+- [ ] Section order: Single → Multiple → Recurring
+- [ ] Markdown links in Text field render as `<a>` tags
+- [ ] Images render correctly (same checks as bulletins)
+- [ ] Contact, location, phone meta fields render where present
+- [ ] Alternating row colors visible
+
+### Edge cases
+- [ ] Post with no image — no broken image container appears
+- [ ] Post with 3 images — all three render stacked
+- [ ] Post with 4 images — third renders, fourth is dropped with `[WARN]` in log
+- [ ] Post with Windows backslash in Image field — normalized to forward slash
+- [ ] Body with `[label](mailto:email)` — renders as email link
+- [ ] Body with `[label](https://url)` — renders as clickable link
+- [ ] Expired items excluded — verify an item past its Expires date is absent
+- [ ] Future items excluded — verify an item before its Received/Starts date is absent
+- [ ] Duplicate section titles — TOC anchors use `-2`, `-3` suffixes
+
+***
+
+## 15. What Must Never Change
+
+These decisions are made. Any proposal to change them requires explicit
+operator approval, not just engineering convenience.
+
+| Decision | Rationale |
+|---|---|
+| Two separate pipelines | Different data shapes, different logic, different audiences |
+| Preprocess before compile, never merged | Separation of concerns; each stage testable independently |
+| QUOTE_ALL on all DictWriters | Protects multi-line and Markdown-syntax cells |
+| Escape before linkify | Prevents `<a>` tags from being HTML-escaped |
+| Mesa Verde color palette | Visual identity for Montezuma County — approved and final |
+| 20px body text, 1.75 line-height | Accessibility for elderly readers — non-negotiable |
+| Table-based email layout | Email client compatibility — CSS layout is not safe in email |
+| One command to build | Operator simplicity — complexity hides in the pipeline, not the interface |
+| Zoho Campaigns for delivery | Out of scope for the builder — do not build send capability |
+| No database | Current phase only — migration is in the roadmap, not in this codebase |
+| `Path(__file__).resolve().parent` | Reliable path resolution regardless of terminal CWD |
+| Forward-slash URL paths in HTML | Windows backslash paths are invalid in HTML src/href |
+
+***
+
+## Appendix A — Confirmed Bug History
+
+These bugs have been confirmed and fixed in this codebase. Do not reintroduce them.
+
+| ID | Description | Root Cause | Fix |
+|---|---|---|---|
+| BUG-1 | Callouts never prompted | Builder ran compilers with no `--callout` arg; operator had no signal | `emit_callout_reminders()` added; flags wired through entrypoint |
+| BUG-2 | Markdown links rendered as raw text in events email | Missing `QUOTE_ALL` on `events/preprocess_events_text.py` DictWriter; `[]()` cells written unquoted | `quoting=csv.QUOTE_ALL` added |
+| BUG-3 | "here" link in Shamanism retreat post not rendering | Same root cause as BUG-2 | Fixed by BUG-2 fix |
+| BUG-4 | All bulletins skipped; zero-item output exits 0 | `parse_date()` had no `M/D/YYYY` handler; LibreOffice exports dates in that format; all rows hit fallthrough warn | `DATE_RE_LONG` added at module level; `long_match` block inserted in `parse_date()` |
+| BUG-5 | Windows backslash paths in HTML `src`/`href` | Raw `pathlib.Path` strings used in HTML attributes produce `\` on Windows; `src` and `href` sometimes referenced different paths | `to_web_path()` helper using `Path.as_posix()` + `urllib.parse.quote` |
+| BUG-6 | Pipe-delimited image field not split before render | `build_image_html()` injected the whole `"img1.png \| img2.png"` string into one `src=` and one `href=` | Split on `\|`, render one `<img>`/`<a>` pair per filename; `MAX_INLINE_IMAGES = 3` |
+| BUG-7 | False-positive Markdown validation on parentheses in URLs | Naive raw paren-counter across full Body field fired on valid CommonMark links with `(` in URL targets | Validate at `[label](target)` segment level only; not yet fully implemented |
+| BUG-8 | `--debug` flag not defined in argparse | Flag used in workflow without `parser.add_argument("--debug", ...)` declaration | Added explicitly with `action="store_true"` |
+
+***
+
+## Appendix B — Punch-List
+
+Confirmed open items, in priority order. These are not bugs in the current
+output — they are improvements that have not yet been built.
+
+### Priority 1 — Pipeline Safety
+
+**P1-A: Non-zero exit when 0 items pass preprocess**
+Both preprocess scripts must exit `1` when `passing == 0` and `skipped > 0`.
+Currently they exit `0`, which causes the entrypoint to proceed to compile
+and produce a blank issue that looks like a build success.
+
+**P1-B: Verify `to_web_path()` applied everywhere**
+Audit both compilers to confirm every `src=` and `href=` attribute uses
+`to_web_path()`. Test with an image that has spaces in the filename.
+
+### Priority 2 — Markdown Validation Hardening
+
+**P2-A: Replace paren-counter with segment-level Markdown validation (Bulletins)**
+Replace the current parenthesis-counting approach with a regex that matches
+`[label](target)` segments and validates label and target independently.
+
+**P2-B: Add `analyze_links` and `auto_fix_markdown_links` to Events preprocess**
+Bring `events/preprocess_events_text.py` to parity with the bulletins
+preprocess for Markdown link validation and auto-fix.
+
+**P2-C: Enforce link label ERROR in Events preprocess**
+If a Markdown link label is a raw URL or raw email address, it should be
+an `[ERROR]` in the events pipeline (same as bulletins). Not yet enforced.
+
+### Priority 3 — Layout and UX
+
+**P3-A: Sort non-Urgent bulletin sections by item count (smallest first)**
+After `group_rows()` builds the ordered sections, sort all sections except
+Urgent Bulletins by `len(items)` ascending before returning. Smaller sections
+at the top reduce scroll distance to reach the most unique content.
+
+**P3-B: Suppress per-item TOC entries for single-item sections**
+When a section has exactly one item, the TOC should show the section heading
+only, not a sub-entry for the single item. Reduces TOC clutter.
+
+**P3-C: Group "Multiple Events" rows by title**
+Rows in the "Hosts with Multiple Events" section that share a title or
+image should be grouped under one heading with sub-entries. Deferred until
+the pipeline is stable through several issue cycles.
+
+***
+
+*Chuck's List Builder Engineer Guide — June 2026*
+*Maintained alongside the codebase. Update this document whenever a confirmed
+bug is fixed or an architecture decision is changed.*
