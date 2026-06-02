@@ -16,10 +16,36 @@ Engineer notes:
   The HTML is often relocated after compile, and the CSV Image value is treated as trusted.
   If/when this pipeline is migrated to a server, restore strict image/path validation there.
 
+IMAGE HANDLING CONTRACT
+  The HTML output file is bundled with an Images/ subfolder at the same level
+  (e.g. ChucksBulletin/Issue.html + ChucksBulletin/Images/photo.jpg).
+  All image src/href values are emitted as:
+
+      Images/filename.ext
+
+  using forward slashes (never Windows backslashes), and the filename is
+  preserved exactly as entered — no normalization of spaces-to-underscores
+  or case changes. The file extension is passed through as-is.
+
+  Multi-image pipe syntax: "Images/a.jpg|Images/b.png" is split on | and
+  each entry rendered as its own <img>/<a> block. Max 3 images per entry;
+  a 4th triggers [WARN] and is dropped. A missing Images/ prefix triggers
+  [WARN] and is auto-prepended so src paths are consistent.
+
 CHANGELOG
   2026-05-31  Fix __main__ block: corrected 3-space indent (IndentationError causing
               silent exit-0 with no output), fixed wrong function name compile_events()
               -> compile_bulletins(), and fixed wrong kwarg callout= -> top_callout=.
+  2026-06-01  P1-B / Bug 5: add to_web_path() helper; all asset src= and href= values
+              now normalized via Path.as_posix() + urllib.parse.quote — never Windows
+              backslash paths.
+              Bug 6: build_image_html() splits Image field on '|' and renders one
+              <img>/<a> pair per filename. MAX_INLINE_IMAGES = 3 enforced with [WARN].
+              Both src and href for the same image use the identical normalized path.
+              Parity with compile_events.py: ensure_images_prefix() added — auto-
+              prepends Images/ prefix with [WARN] if the operator omitted it.
+              read_rows() now returns None on hard CSV error (vs [] which was
+              indistinguishable from "valid but empty").
 """
 
 from __future__ import annotations
@@ -31,17 +57,19 @@ import re
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Optional
+from urllib.parse import quote
 
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-PROJ_DIR = SCRIPT_DIR.parent
-INPUT_CSV = SCRIPT_DIR / "bulletins_data.csv"
+PROJ_DIR   = SCRIPT_DIR.parent
+INPUT_CSV  = SCRIPT_DIR / "bulletins_data.csv"
 OUTPUT_DIR = PROJ_DIR / "ChucksBulletin"
 OUTPUT_HTML = SCRIPT_DIR / "chucks_bulletin_final_output.html"
+
+MAX_INLINE_IMAGES = 3
 
 # ---------------------------------------------------------------------------
 # Canonical bulletin structure
@@ -56,11 +84,11 @@ SECTION_ORDER = [
 ]
 
 SECTION_ANCHORS = {
-    "Urgent Bulletins": "section-urgent-bulletins",
-    "Housing Opportunities": "section-housing-opportunities",
-    "Swap Market": "section-swap-market",
-    "Local Services & Help": "section-local-services-help",
-    "Community Announcements": "section-community-announcements",
+    "Urgent Bulletins":       "section-urgent-bulletins",
+    "Housing Opportunities":  "section-housing-opportunities",
+    "Swap Market":            "section-swap-market",
+    "Local Services & Help":  "section-local-services-help",
+    "Community Announcements":"section-community-announcements",
 }
 
 # Top callout: render only if the operator passes --callout.
@@ -82,10 +110,10 @@ MARKDOWN_LINK_RE = re.compile(
 )
 
 BULLET_LINE_RE = re.compile(r"^\s*[-*•]\s+(.*)$")
-SUBHEAD_RE = re.compile(r"^\s*##\s*(.+?)\s*$")
+SUBHEAD_RE     = re.compile(r"^\s*##\s*(.+?)\s*$")
 
 # ---------------------------------------------------------------------------
-# Frozen bulletin template CSS
+# Frozen bulletin template CSS (Mesa Verde / Montezuma — do not alter)
 # ---------------------------------------------------------------------------
 
 EMAIL_CSS = """
@@ -394,6 +422,52 @@ EMAIL_CSS = """
 """
 
 # ---------------------------------------------------------------------------
+# Asset path helpers (Bug 5 fix + Images/ prefix guard)
+# ---------------------------------------------------------------------------
+
+def to_web_path(path: str) -> str:
+    """
+    Normalize a filesystem path or relative filename to a forward-slash URL
+    path safe for use in HTML src= and href= attributes.
+
+    Uses Path.as_posix() to convert Windows backslashes, then
+    urllib.parse.quote to percent-encode characters not safe in a URL path.
+    The safe= set preserves characters that are legal and meaningful in a
+    relative web path. Spaces become %20 (correct for URL paths).
+
+    IMPORTANT: This function does NOT change the filename itself — only the
+    path separator and URL-unsafe characters are touched. The stem and
+    extension are preserved exactly as entered in the CSV.
+    """
+    return quote(Path(path).as_posix(), safe="/:._-~")
+
+
+def ensure_images_prefix(raw_entry: str) -> tuple[str, bool]:
+    """
+    Ensure the image path starts with 'Images/' (the canonical subfolder
+    bundled alongside the output HTML).
+
+    If the path already has an http/https scheme it is returned as-is.
+    If the path does not start with 'Images/' it is auto-prepended and a
+    warning flag is returned so the caller can emit [WARN].
+
+    The filename itself (stem + extension) is NEVER altered.
+    """
+    stripped = raw_entry.strip()
+
+    if stripped.lower().startswith(("http://", "https://")):
+        return stripped, False
+
+    posix = Path(stripped).as_posix()
+
+    if posix.startswith("Images/"):
+        return stripped, False
+
+    filename_only = Path(posix).name
+    return f"Images/{filename_only}", True
+
+
+# ---------------------------------------------------------------------------
 # Safe anchor, link, and text helpers
 # ---------------------------------------------------------------------------
 
@@ -421,7 +495,7 @@ def protect_markdown_links(text: str) -> tuple[str, dict[str, str]]:
         nonlocal counter
         counter += 1
         label = html.escape(match.group(1).strip())
-        href = html.escape(match.group(2).strip(), quote=True)
+        href  = html.escape(match.group(2).strip(), quote=True)
         token = f"__MDLINK_{counter}__"
 
         if href.lower().startswith("mailto:"):
@@ -470,7 +544,7 @@ def linkify_escaped_text(escaped_text: str) -> str:
 def escape_then_linkify(text: str) -> str:
     protected, replacements = protect_markdown_links(text)
     escaped = html.escape(protected)
-    linked = linkify_escaped_text(escaped)
+    linked  = linkify_escaped_text(escaped)
     return restore_markdown_links(linked, replacements)
 
 
@@ -514,13 +588,15 @@ def render_body(raw_text: str) -> str:
                 continue
 
             subhead_match = SUBHEAD_RE.match(line)
-            bullet_match = BULLET_LINE_RE.match(line)
+            bullet_match  = BULLET_LINE_RE.match(line)
 
             if subhead_match:
                 flush_paragraph()
                 flush_list()
                 html_blocks.append(
-                    f'<div class="entry-subhead">{escape_then_linkify(subhead_match.group(1).strip())}</div>'
+                    f'<div class="entry-subhead">'
+                    f'{escape_then_linkify(subhead_match.group(1).strip())}'
+                    f'</div>'
                 )
                 continue
 
@@ -537,11 +613,21 @@ def render_body(raw_text: str) -> str:
 
     return "\n".join(html_blocks)
 
+
 # ---------------------------------------------------------------------------
 # CSV read and grouping
 # ---------------------------------------------------------------------------
 
-def read_rows() -> Optional[list[tuple[int, dict[str, str]]]]:
+def read_rows() -> list[tuple[int, dict[str, str]]] | None:
+    """
+    Returns:
+      list of (row_number, row_dict) tuples — may be empty if CSV is valid
+      but has no data rows (all filtered upstream; not a compile error).
+      None — hard error (file missing, unreadable, or structurally broken).
+
+    Returning None vs [] lets compile_bulletins() distinguish a hard failure
+    from a legitimately empty date-filtered result.
+    """
     if not INPUT_CSV.exists():
         print(f"ERROR: Input CSV not found: {INPUT_CSV}", file=sys.stderr)
         return None
@@ -549,13 +635,16 @@ def read_rows() -> Optional[list[tuple[int, dict[str, str]]]]:
     try:
         with open(INPUT_CSV, newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)
-            required_cols = {"Title", "Body", "Section", "Image"}
             if reader.fieldnames is None:
-                print("ERROR: bulletins_data.csv appears empty or has no header row.", file=sys.stderr)
+                print(
+                    "ERROR: bulletins_data.csv appears empty or has no header row.",
+                    file=sys.stderr,
+                )
                 return None
 
-            actual_cols = set(reader.fieldnames)
-            missing = required_cols - actual_cols
+            required_cols = {"Title", "Body", "Section", "Image"}
+            actual_cols   = set(reader.fieldnames)
+            missing       = required_cols - actual_cols
             if missing:
                 print(
                     "ERROR: bulletins_data.csv is missing required columns: "
@@ -567,17 +656,27 @@ def read_rows() -> Optional[list[tuple[int, dict[str, str]]]]:
                 return None
 
             return [(i, row) for i, row in enumerate(reader, start=2)]
+
+    except UnicodeDecodeError:
+        print(
+            "ERROR: bulletins_data.csv is not valid UTF-8. "
+            "Re-run preprocess with UTF-8 output.",
+            file=sys.stderr,
+        )
+        return None
     except Exception as exc:
         print(f"ERROR reading {INPUT_CSV}: {exc}", file=sys.stderr)
         return None
 
 
-def group_rows(rows: list[tuple[int, dict[str, str]]]) -> list[tuple[str, list[tuple[int, dict[str, str]]]]]:
+def group_rows(
+    rows: list[tuple[int, dict[str, str]]]
+) -> list[tuple[str, list[tuple[int, dict[str, str]]]]]:
     grouped: dict[str, list[tuple[int, dict[str, str]]]] = defaultdict(list)
 
     for row_num, row in rows:
         section = (row.get("Section") or "").strip()
-        title = (row.get("Title") or "(no title)").strip()
+        title   = (row.get("Title")   or "(no title)").strip()
 
         if not section:
             print(
@@ -589,7 +688,8 @@ def group_rows(rows: list[tuple[int, dict[str, str]]]) -> list[tuple[str, list[t
 
         if section not in SECTION_ORDER:
             print(
-                f"  [WARN] Row {row_num}: field 'Section' has value '{section}' for item '{title}'. "
+                f"  [WARN] Row {row_num}: field 'Section' has value '{section}' for "
+                f"item '{title}'. "
                 f"Fix: use one of: {', '.join(SECTION_ORDER)}. Item skipped.",
                 file=sys.stderr,
             )
@@ -610,32 +710,78 @@ def group_rows(rows: list[tuple[int, dict[str, str]]]) -> list[tuple[str, list[t
 
     return ordered
 
+
 # ---------------------------------------------------------------------------
-# Image rendering
+# Image rendering (Bug 5 + Bug 6 + ensure_images_prefix)
 # ---------------------------------------------------------------------------
 
-def build_image_html(image_path: str, title: str) -> str:
-    if not image_path or not image_path.strip():
+def build_image_html(image_field: str, title: str) -> str:
+    """
+    Render one <img>/<a> block per pipe-delimited filename in image_field.
+
+    Bug 6: split on '|' before templating — never pass a pipe-joined string
+    into src= or href=.
+    Bug 5: normalize every path through to_web_path() so Windows backslashes
+    are converted to forward-slash URL syntax before injection into HTML.
+    Both src and href for the same image use the identical normalized path.
+
+    ensure_images_prefix(): auto-prepend 'Images/' with [WARN] if the
+    operator omitted it. Filename (stem + extension) is never altered.
+
+    A 4th pipe segment triggers [WARN] and is dropped; operator is told to
+    use a markdown link in Body instead.
+    """
+    if not image_field or not image_field.strip():
         return ""
 
-    src = html.escape(image_path.strip(), quote=True)
-    alt = html.escape(title, quote=True)
+    raw_entries = [e.strip() for e in image_field.split("|") if e.strip()]
 
-    return f"""
+    if not raw_entries:
+        return ""
+
+    if len(raw_entries) > MAX_INLINE_IMAGES:
+        print(
+            f"  [WARN] Image field has {len(raw_entries)} entries "
+            f"(max {MAX_INLINE_IMAGES}). "
+            f"Entries beyond position {MAX_INLINE_IMAGES} were dropped. "
+            "Fix: use a markdown link in the Body field for the additional image(s).",
+            file=sys.stderr,
+        )
+        raw_entries = raw_entries[:MAX_INLINE_IMAGES]
+
+    alt = html.escape(title, quote=True)
+    blocks: list[str] = []
+
+    for raw_entry in raw_entries:
+        normalized_entry, was_fixed = ensure_images_prefix(raw_entry)
+        if was_fixed:
+            print(
+                f"  [WARN] Image path '{raw_entry}' is missing the 'Images/' prefix. "
+                f"Auto-corrected to '{normalized_entry}'. "
+                "Fix: prefix image filenames with 'Images/' in the CSV.",
+                file=sys.stderr,
+            )
+
+        web_path     = to_web_path(normalized_entry)
+        escaped_path = html.escape(web_path, quote=True)
+
+        blocks.append(f"""
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
                        style="width:100%; background-color:#efe8dc; border:1px solid #d9cfc0; margin-top:14px;">
                   <tr>
                     <td style="padding:12px;">
-                      <a href="{src}" target="_blank" rel="noopener noreferrer"
+                      <a href="{escaped_path}" target="_blank" rel="noopener noreferrer"
                          style="display:block; text-decoration:none;">
-                        <img src="{src}"
+                        <img src="{escaped_path}"
                              alt="{alt}"
                              style="display:block; width:100%; max-width:100%; height:auto;">
                       </a>
                     </td>
                   </tr>
-                </table>
-    """.rstrip()
+                </table>""".rstrip())
+
+    return "\n".join(blocks)
+
 
 # ---------------------------------------------------------------------------
 # Row rendering
@@ -675,6 +821,7 @@ def render_entry_row(
             </tr>
     """.rstrip()
 
+
 # ---------------------------------------------------------------------------
 # TOC rendering
 # ---------------------------------------------------------------------------
@@ -687,10 +834,12 @@ def build_toc_html(
 
     for section_name, items in grouped_sections:
         lines.append(
-            f'<li style="list-style:none; margin-top:10px;"><strong><a href="#{SECTION_ANCHORS[section_name]}">{html.escape(section_name)}</a></strong></li>'
+            f'<li style="list-style:none; margin-top:10px;">'
+            f'<strong><a href="#{SECTION_ANCHORS[section_name]}">'
+            f'{html.escape(section_name)}</a></strong></li>'
         )
         for row_num, row in items:
-            title = (row.get("Title") or "").strip()
+            title  = (row.get("Title") or "").strip()
             anchor = item_anchor_map[(section_name, row_num)]
             lines.append(
                 f'<li><a href="#{anchor}">{html.escape(title)}</a></li>'
@@ -707,6 +856,7 @@ def build_toc_html(
                   </ul>
                 </div>
     """.rstrip()
+
 
 # ---------------------------------------------------------------------------
 # Full HTML assembly
@@ -860,33 +1010,42 @@ def build_full_html(
 </html>
 """
 
+
 # ---------------------------------------------------------------------------
 # Compile entrypoint
 # ---------------------------------------------------------------------------
 
-def compile_bulletins(issue_date: str, top_callout: str, bottom_callout: str) -> int:
+def compile_bulletins(
+    issue_date: str,
+    top_callout: str,
+    bottom_callout: str,
+) -> int:
     rows = read_rows()
+
     if rows is None:
         # Hard error: CSV missing or structurally broken
         return 1
+
     if not rows:
         # Expected: all items excluded by date filter — not an error
         print(
             f"  [OK] Bulletin Compile: 0 items passed date filter for {issue_date}. "
-            f"No HTML written (nothing to publish)."
+            "No HTML written (nothing to publish)."
         )
         return 0
 
     grouped_sections = group_rows(rows)
-    item_anchor_seen: dict[str, int] = {}
-    item_anchor_map: dict[tuple[str, int], str] = {}
+    item_anchor_seen: dict[str, int]             = {}
+    item_anchor_map:  dict[tuple[str, int], str] = {}
 
     for section_name, items in grouped_sections:
         for row_num, row in items:
             title = (row.get("Title") or "").strip()
             if not title:
                 continue
-            item_anchor_map[(section_name, row_num)] = make_item_anchor(title, item_anchor_seen)
+            item_anchor_map[(section_name, row_num)] = make_item_anchor(
+                title, item_anchor_seen
+            )
 
     toc_html = build_toc_html(grouped_sections, item_anchor_map)
 
@@ -905,13 +1064,14 @@ def compile_bulletins(issue_date: str, top_callout: str, bottom_callout: str) ->
         )
 
         for row_num, row in items:
-            title = (row.get("Title") or "").strip()
-            body_raw = (row.get("Body") or "").strip()
-            image = (row.get("Image") or "").strip()
+            title    = (row.get("Title") or "").strip()
+            body_raw = (row.get("Body")  or "").strip()
+            image    = (row.get("Image") or "").strip()
 
             if not title:
                 print(
-                    f"  [WARN] Row {row_num}: field 'Title' is empty. Fix: enter a title. Item skipped.",
+                    f"  [WARN] Row {row_num}: field 'Title' is empty. "
+                    "Fix: enter a title. Item skipped.",
                     file=sys.stderr,
                 )
                 continue
@@ -919,9 +1079,9 @@ def compile_bulletins(issue_date: str, top_callout: str, bottom_callout: str) ->
             row_class = "row-white" if alternating_index % 2 == 0 else "row-alt"
             alternating_index += 1
 
-            body_html = render_body(body_raw)
+            body_html  = render_body(body_raw)
             image_html = build_image_html(image, title)
-            item_anchor = item_anchor_map[(section_name, row_num)]
+            item_anchor = item_anchor_map.get((section_name, row_num), "")
 
             section_blocks.append(
                 render_entry_row(
