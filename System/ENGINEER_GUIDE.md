@@ -127,7 +127,7 @@ Never emit `src="img1.png | img2.png"`.
 | `ChucksEvents/events/compile_events.py` | Render intermediate events CSV into final HTML email |
 | `System/SYSTEM_README.md` | Operator guide — keep current after every significant change |
 | `System/ENGINEER_GUIDE.md` | This file — technical almanac for developers |
-| `System/BUG_LIST.md` | Canonical bug ledger — append new entries; never delete resolved ones |
+| `System/BUG_LIST.md` | Bug ledger — IDs, status, area, symptom, cause/fix. Prioritizes stopper/functional bugs. Historical entries may use `Approximate` where exact details are unknown. |
 | `System/config.py.template.py` | Template for local config (config.py itself is git-ignored) |
 | `System/logs/` | Timestamped build logs written by `--log-to-file`; git-ignored |
 
@@ -293,6 +293,29 @@ All resolved. Do not reintroduce.
 | **Bug 6** — Pipe-delimited image field not split before render | Unsplit pipe-joined string passed into `src=` | `build_image_html()` splits on `\|` first |
 | **Bug 7** — False-positive Markdown validation errors | Naive parenthesis counting across full Body field fired on valid URLs containing `(` `)` (BurroFest URL) | Replaced with segment-targeted `[label](target)` validation |
 | **Bug 8** — `--debug` flag not defined in argparse | `add_argument("--debug", ...)` missing | Added |
+
+---
+
+## README.md Maintenance Contract
+
+The README is a living dashboard, not a one-time document. It must be updated
+in the same commit as any change to goals or BUG_LIST status.
+
+**After every session that changes goals or bugs:**
+
+| README section | When to update |
+|---|---|
+| **Active Goals** table | Any time the active goal changes or a staged goal is added/completed |
+| **Recent Fixes** table | Any time a bug moves to `Fixed` — add it to the top, drop the oldest entry if count exceeds 10 |
+| **Current Pipeline Status** table | Any time a bug's status changes (Open / In Progress / Fixed) |
+
+**Rules:**
+- Active goal always occupies row 1 with status `🔄 Active`.
+- Table shows the active goal + next 4 staged goals maximum.
+- Recent Fixes table is a rolling window — currently 10 entries. The operator
+  may change the window size; document the new size here when it changes.
+- Never remove a goal row without confirming it is either completed or explicitly
+  deferred by the operator.
 
 ---
 
