@@ -156,8 +156,8 @@ py Chucks_List_Builder.py --issue-date 2026-06-07 \
 ### Build one edition only
 
 ```bash
-py Chucks_List_Builder.py --issue-date 2026-06-07 --bulletin-only
-py Chucks_List_Builder.py --issue-date 2026-06-07 --events-only
+py Chucks_List_Builder.py --issue-date 2026-06-07 --issue-type bulletin
+py Chucks_List_Builder.py --issue-date 2026-06-07 --issue-type events
 ```
 
 ### Suppress VS Code auto-open
@@ -184,10 +184,11 @@ py Chucks_List_Builder.py --issue-date 2026-06-07 --debug
 | Flag | Required | Default | Purpose |
 |---|---|---|---|
 | `--issue-date YYYY-MM-DD` | **Yes** | none | Controls row inclusion for both editions |
+| `--issue-type bulletin\|events\|both` | No | `both` | Run bulletin only, events only, or both pipelines |
 | `--callout "text"` | No | Default text | Top callout box text in both emails |
 | `--bottom-callout "text"` | No | Default text | Bottom callout box text in both emails |
-| `--bulletin-only` | No | off | Run bulletin pipeline only |
-| `--events-only` | No | off | Run events pipeline only |
+| `--bulletin` | No | off | Run bulletin pipeline only |
+| `--events` | No | off | Run events pipeline only |
 | `--no-open-vscode` | No | off | Suppress VS Code auto-open of output HTML |
 | `--log-to-file` | No | off | Write timestamped log to `System/logs/` |
 | `--debug` | No | off | Verbose diagnostic output |
@@ -408,7 +409,7 @@ touching a CSV or command line.
 
 - **One command, two editions.** The pipeline always produces both Bulletin
   and Events outputs in a single run unless you explicitly use
-  `--bulletin-only` or `--events-only`.
+  `--bulletin` or `--events`.
 
 ### Keeping the README Current
 
