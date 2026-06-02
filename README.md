@@ -106,26 +106,26 @@ py Chucks_List_Builder.py --issue-date 2026-06-07 --log-to-file --no-open-vscode
 ```
 ChucksList_Builder/
 ├── Chucks_List_Builder.py              Orchestration entrypoint
-├── Bulletins.csv                       Raw bulletin export (from ODS)
-├── Events.csv                          Raw events export (from ODS)
-├── Chucks-list-MASTER.ods              Editorial source workbook (not committed)
+├── Chucks-list-MASTER.ods              Editorial source workbook (not committed) - Migrated to Google Docs
 ├── config.py                           Local config (not committed — see template)
 ├── config.py.template.py               Template for local config
 │
-├── bulletins/
-│   ├── preprocess_bulletin_text.py     Normalize, validate, filter bulletins
-│   ├── compile_bulletin.py             Render bulletin HTML
-│   ├── bulletins_data.csv              Intermediate CSV (generated)
-│   └── chucks_bulletin_final_output.html   Bulletin output (generated)
-│
-├── events/
-│   ├── preprocess_events_text.py       Normalize, validate, filter events
-│   ├── compile_events.py               Render events HTML
-│   ├── events_data.csv                 Intermediate events CSV (generated)
-│   └── chucks_events_final_output.html Events output (generated)
-│
 ├── ChucksBulletin/                     Zoho staging folder — bulletins
+│   └── bulletins/
+│       ├── Bulletins.csv                   Raw bulletin export (from ODS) - downloaded from Google Drive
+│       ├── preprocess_bulletin_text.py     Normalize, validate, filter bulletins
+│       ├── compile_bulletin.py             Render bulletin HTML
+│       ├── bulletins_data.csv              Intermediate CSV (generated) - sanitize prior to compile
+│       └── chucks_bulletin_final_output.html   Bulletin output (generated) - sanitize prior to compile
+│
 ├── ChucksEvents/                       Zoho staging folder — events
+│   └── events/
+│       ├── Events.csv                      Raw events export (from ODS) - downloaded from Google Drive
+│       ├── preprocess_events_text.py       Normalize, validate, filter events
+│       ├── compile_events.py               Render events HTML
+│       ├── events_data.csv                 Intermediate events CSV (generated) - sanitize prior to compile
+│       └── chucks_events_final_output.html Events output (generated) - sanitize prior to compile
+│
 └── Images/                             Shared image source directory
 ```
 
