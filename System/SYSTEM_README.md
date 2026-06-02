@@ -1,8 +1,9 @@
-# Chuck's List Builder
+# Chuck's List Builder — Operator Guide
 
-> **One command. Two pipelines. Clean, accessible HTML for every issue.**
+> For developer/engineering reference, architecture contracts, bug history,
+> and open punch list, see [ENGINEER_GUIDE.md](ENGINEER_GUIDE.md).
 
-A local Python pipeline that transforms ODS editorial spreadsheets into
+A local Python pipeline that transforms CSV editorial exports into
 Zoho-ready HTML email editions for Chuck's List — a community bulletin
 board and events newsletter serving Montezuma County and surrounding
 communities in southwestern Colorado.
@@ -41,10 +42,11 @@ communities in southwestern Colorado.
 
 ## Overview
 
-Chuck's List Builder reads two CSV exports from `Chucks-list-MASTER.ods`,
-validates and filters each for the current issue date, and renders two
-separate HTML email files — one for the Bulletin edition and one for the
-Events edition. Both outputs are staged for direct upload to Zoho Campaigns.
+Chuck's List Builder reads two CSV exports from `Chucks-list-MASTER.ods`
+(now mirrored in Google Drive), validates and filters each for the current
+issue date, and renders two separate HTML email files — one for the Bulletin
+edition and one for the Events edition. Both outputs are staged for direct
+upload to Zoho Campaigns.
 
 The full build runs from a single command:
 
@@ -95,9 +97,9 @@ py Chucks_List_Builder.py --issue-date 2026-06-07 \
 py Chucks_List_Builder.py --issue-date 2026-06-07 --log-to-file --no-open-vscode
 ```
 
-**Before running,** export the two sheets from `Chucks-list-MASTER.ods`:
-- `Bulletins.csv` → project root
-- `Events.csv` → project root
+**Before running,** download the two exports from Google Drive and place them:
+- `Bulletins.csv` → `ChucksBulletin/bulletins/`
+- `Events.csv` → `ChucksEvents/events/`
 
 ***
 
@@ -106,28 +108,37 @@ py Chucks_List_Builder.py --issue-date 2026-06-07 --log-to-file --no-open-vscode
 ```
 ChucksList_Builder/
 ├── Chucks_List_Builder.py              Orchestration entrypoint
-├── Chucks-list-MASTER.ods              Editorial source workbook (not committed) - Migrated to Google Docs
-├── config.py                           Local config (not committed — see template)
-├── config.py.template.py               Template for local config
+├── .gitignore
 │
 ├── ChucksBulletin/                     Zoho staging folder — bulletins
-│   └── bulletins/
-│       ├── Bulletins.csv                   Raw bulletin export (from ODS) - downloaded from Google Drive
-│       ├── preprocess_bulletin_text.py     Normalize, validate, filter bulletins
-│       ├── compile_bulletin.py             Render bulletin HTML
-│       ├── bulletins_data.csv              Intermediate CSV (generated) - sanitize prior to compile
-│       └── chucks_bulletin_final_output.html   Bulletin output (generated) - sanitize prior to compile
+│   ├── bulletins/
+│   │   ├── Bulletins.csv                   Raw bulletin export (local only, not committed)
+│   │   ├── preprocess_bulletin_text.py     Normalize, validate, filter bulletins
+│   │   ├── compile_bulletin.py             Render bulletin HTML
+│   │   ├── bulletins_data.csv              Intermediate CSV (generated)
+│   │   └── chucks_bulletin_final_output.html   Bulletin output (generated)
+│   └── Images/                         Bulletin-specific images (local only, git-ignored)
 │
 ├── ChucksEvents/                       Zoho staging folder — events
-│   └── events/
-│       ├── Events.csv                      Raw events export (from ODS) - downloaded from Google Drive
-│       ├── preprocess_events_text.py       Normalize, validate, filter events
-│       ├── compile_events.py               Render events HTML
-│       ├── events_data.csv                 Intermediate events CSV (generated) - sanitize prior to compile
-│       └── chucks_events_final_output.html Events output (generated) - sanitize prior to compile
+│   ├── events/
+│   │   ├── Events.csv                      Raw events export (local only, not committed)
+│   │   ├── preprocess_events_text.py       Normalize, validate, filter events
+│   │   ├── compile_events.py               Render events HTML
+│   │   ├── events_data.csv                 Intermediate events CSV (generated)
+│   │   └── chucks_events_final_output.html Events output (generated)
+│   └── Images/                         Events-specific images (local only, git-ignored)
 │
-└── Images/                             Shared image source directory
+├── Images/                             Shared images (local only, git-ignored — NEVER commit images)
+│
+└── System/
+    ├── README.md                       This file — operator guide
+    ├── ENGINEER_GUIDE.md               Developer reference — architecture, contracts, punch list
+    ├── config.py.template.py           Template for local config
+    └── logs/                           Timestamped build logs (local only, git-ignored)
 ```
+
+> **Images note:** `Images/`, `ChucksBulletin/Images/`, and `ChucksEvents/Images/`
+> are all local-only and git-ignored. Never commit image files to this repository.
 
 ***
 
@@ -138,20 +149,20 @@ no state, and no intermediate files. This is intentional.
 
 ```
 Bulletins.csv ──► preprocess_bulletin_text.py ──► bulletins_data.csv
-                                                        │
-                                                        ▼
-                                             compile_bulletin.py
-                                                        │
-                                                        ▼
-                                   chucks_bulletin_final_output.html
+                                                          │
+                                                          ▼
+                                               compile_bulletin.py
+                                                          │
+                                                          ▼
+                                     chucks_bulletin_final_output.html
 
 Events.csv ──► preprocess_events_text.py ──► events_data.csv
-                                                    │
-                                                    ▼
-                                          compile_events.py
-                                                    │
-                                                    ▼
-                                 chucks_events_final_output.html
+                                                      │
+                                                      ▼
+                                            compile_events.py
+                                                      │
+                                                      ▼
+                                   chucks_events_final_output.html
 ```
 
 ### Bulletins Pipeline
@@ -186,7 +197,8 @@ Events.csv ──► preprocess_events_text.py ──► events_data.csv
 - Apply the correct escape-then-linkify order for Zoho link safety
 - Build the table of contents with collision-safe anchors
 - Render callout boxes (top and bottom)
-- Write the final HTML output file
+- Write the final HTML output file to both the `bulletins/` or `events/`
+  working directory and the staging folder root (`ChucksBulletin/` or `ChucksEvents/`)
 
 ***
 
@@ -199,7 +211,7 @@ Events.csv ──► preprocess_events_text.py ──► events_data.csv
 | `--callout` | string | hardcoded default | Top callout text for the issue |
 | `--bottom-callout` | string | hardcoded default | Bottom callout text for the issue |
 | `--debug` | flag | off | Enable debug-level logging |
-| `--log-to-file` | flag | off | Write log output to a file alongside the output HTML |
+| `--log-to-file` | flag | off | Append timestamped log to `System/logs/`; accumulates across runs for trend diagnosis |
 | `--no-open-vscode` | flag | off | Suppress auto-opening output in VS Code |
 
 If `--callout` or `--bottom-callout` are not passed, the builder emits a
@@ -216,13 +228,13 @@ Export directly from `Chucks-list-MASTER.ods` with no post-processing.
 
 | Column | Required | Notes |
 |---|---|---|
-| `Received` | Yes | Date item was received |
+| `Received` | Yes | Date item was received; used for inclusion window |
 | `Expires` | Yes | Last issue date to include this item |
 | `Section` | Yes | Must match a canonical section name or alias |
 | `Title` | Yes | Plain text |
 | `Body` | Yes | Plain text; supports limited Markdown (see below) |
-| `Image` | No | Filename(s) in `Images/`; pipe-separated for multiple |
-| `notes` | No | Internal staff notes; never rendered |
+| `Image` | No | Filename(s) in `Images/`; pipe-separated for multiple (max 3) |
+| `notes` | No | Internal staff notes — never rendered, never written to intermediate CSV |
 
 ### Events CSV Columns
 
@@ -230,12 +242,12 @@ Export directly from `Chucks-list-MASTER.ods` with no post-processing.
 |---|---|---|
 | `Received` | No | Not used for filtering |
 | `Starts` | Yes | First date to include this event |
-| `Expires` | Yes | Last date to include this event (maps to `Ends` in output) |
+| `Expires` | Yes | Last date to include this event (maps to `Ends` in intermediate CSV) |
 | `Section` | No | Used for grouping |
 | `Title` | Yes | Plain text |
 | `Text` | Yes | Plain text; supports limited Markdown |
-| `Image` | No | Filename(s) in `Images/`; pipe-separated for multiple |
-| `notes` | No | Internal staff notes; never rendered |
+| `Image` | No | Filename(s) in `Images/`; pipe-separated for multiple (max 3) |
+| `notes` | No | Internal staff notes — never rendered, never written to intermediate CSV |
 
 ### Multi-Image Fields
 
@@ -249,9 +261,10 @@ Images/photo1.jpg|Images/photo2.jpg|Images/photo3.jpg
 
 - Each filename is trimmed of whitespace before use.
 - A 4th image triggers a `[WARN]` and is dropped. Move extras to cloud
-  storage and share a link in the body text.
+  storage and share a link in the body text instead.
 - Each image renders as its own `<img>` tag wrapped in a clickable `<a>`.
 - Paths are always normalized to forward-slash URL syntax before HTML output.
+- If the `Images/` prefix is missing, the builder auto-prepends it with a `[WARN]`.
 
 ### Date Formats
 
@@ -284,7 +297,7 @@ For staff who do use it, these patterns are supported:
 
 **Rules for links:**
 - The label must be human-readable text — never a raw URL or raw email address.
-- Bare URLs in body text are flagged as errors (Zoho cannot click-track them).
+- Bare URLs in body text are flagged as errors (Zoho cannot click-track them safely).
 - Bare email addresses are flagged as warnings and auto-converted to `mailto:` links.
 
 ***
@@ -312,6 +325,9 @@ instruction pointing back to `Chucks-list-MASTER.ods`.
 4. Local Services & Help
 5. Community Announcements
 
+After Urgent Bulletins, non-Urgent sections are sorted by ascending item count
+so smaller sections appear before larger ones within a given issue.
+
 Section names in the CSV are normalized through an alias map, so minor
 variations (capitalization, punctuation) are accepted.
 
@@ -325,14 +341,17 @@ variations (capitalization, punctuation) are accepted.
 
 ## Output and Zoho Staging
 
-| Output file | Staging folder |
+| Output file | Location |
 |---|---|
-| `bulletins/chucks_bulletin_final_output.html` | `ChucksBulletin/` |
-| `events/chucks_events_final_output.html` | `ChucksEvents/` |
+| `chucks_bulletin_final_output.html` | `ChucksBulletin/bulletins/` and `ChucksBulletin/` (staging copy) |
+| `chucks_events_final_output.html` | `ChucksEvents/events/` and `ChucksEvents/` (staging copy) |
 
-Copy the output HTML into the corresponding staging folder, then upload to
-Zoho Campaigns as a custom HTML email. Do not upload if the build reported
-any `[ERROR]` lines — partial output is not safe to send.
+Upload the staging copy from `ChucksBulletin/` or `ChucksEvents/` to Zoho
+Campaigns as a custom HTML email. The staging folder root is the intended
+Zoho upload location — images must be present in the `Images/` subfolder
+relative to that root for local preview to work.
+
+**Do not upload to Zoho if any `[ERROR]` lines appeared in the run.**
 
 ***
 
@@ -375,13 +394,13 @@ The builder is designed to guide the operator, not just fail silently.
 
 - Every `[WARN]` includes: row number, field name, bad value, and an exact
   fix instruction pointing back to `Chucks-list-MASTER.ods`
-- `[ERROR]` lines block the pipeline — the operator must fix the data
+- `[ERROR]` lines block the pipeline — the operator must fix the data before proceeding
+- `[AUTO-FIX]` lines report a safe correction that was applied automatically
 - `[REMIND]` lines alert the operator to per-issue customization points
   (e.g., callout text not set for this issue)
 - A build summary at the end lists every stage result
 - A zero-item output after a successful-looking run is treated as a build
   failure (non-zero exit), not a blank issue
-- **Do not upload to Zoho if any `[ERROR]` lines appeared in the run.**
 
 ***
 
@@ -426,6 +445,10 @@ For anyone modifying this codebase:
 9. **Do not push to GitHub directly.** Provide code for the operator to
    paste and push manually after local testing.
 
+10. **Update all three documentation files** (`README.md`, `System/SYSTEM_README.md`,
+    `System/ENGINEER_GUIDE.md`) as part of any commit that changes pipeline
+    behavior, CLI flags, file locations, or data contracts.
+
 ***
 
 ## Known Limitations
@@ -435,11 +458,11 @@ For anyone modifying this codebase:
 - **Windows-only.** Subprocess behavior and some path handling assumes Windows.
 - **Zoho Campaigns dependency.** The builder produces HTML; delivery is
   handled entirely by Zoho Campaigns. No built-in send capability.
-- **Events Markdown validation** is less strict than bulletins — bare URL/email
-  checking uses a raw HTML tag scan, not the full `analyze_links` logic.
-  Parity is a planned improvement.
-- **No "Multiple Events" grouping** — rows sharing the same event title are
-  not yet collapsed under one heading. Deferred until pipeline is stable.
+- **No "Multiple Events" grouping (P3-A)** — rows sharing the same event title
+  are not yet collapsed under one heading. Planned once P1 items are resolved.
+- **No bulletin rotation (P3-B)** — same-date items within a section appear in
+  CSV order. Rotation across issues is planned.
+- **No NEW badge (P3-C)** — first-appearance items are not yet flagged. Planned.
 
 ***
 
@@ -448,12 +471,15 @@ For anyone modifying this codebase:
 | Stage | Goal | Status |
 |---|---|---|
 | 1 | Document and stabilize current scripts | 🔄 In progress |
-| 2 | Harden both preprocessors to parity (validation, date formats, exit codes) | 🔄 In progress |
-| 3 | Mirror CSV data into a database | ⬜ Planned |
-| 4 | Build admin UI on mcafeefarm.biz | ⬜ Planned |
-| 5 | Generate website listings from database | ⬜ Planned |
-| 6 | Generate email editions from database | ⬜ Planned |
-| 7 | Retire CSV dependence when safe | ⬜ Planned |
+| 2 | Harden both preprocessors to parity (validation, date formats, exit codes) | ✅ Complete |
+| 3 | Fix nested output folder bug (P1-C) | 🔄 In progress |
+| 4 | TOC and section ordering improvements (P2-A, P2-B) | 🔄 In progress |
+| 5 | Multiple Events grouping, rotation, NEW badge (P3-A, P3-B, P3-C) | ⬜ Planned |
+| 6 | Mirror CSV data into a database | ⬜ Planned |
+| 7 | Build admin UI on mcafeefarm.biz | ⬜ Planned |
+| 8 | Generate website listings from database | ⬜ Planned |
+| 9 | Generate email editions from database | ⬜ Planned |
+| 10 | Retire CSV dependence when safe | ⬜ Planned |
 
 ***
 
@@ -470,4 +496,3 @@ For anyone modifying this codebase:
 ***
 
 *Chuck's List Builder — Montezuma County community publishing.*
-*Reliable. Readable. One command.*
