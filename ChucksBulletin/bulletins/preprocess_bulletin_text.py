@@ -365,22 +365,22 @@ def analyze_links(body: str, row_num: int, title: str) -> list[Issue]:
 
     masked_body = MARKDOWN_LINK_RE.sub("[LINK]", body)
 
-    for match in URL_RE.finditer(masked_body):
-        token = match.group(0)
-        clean, trailing = split_trailing_punctuation(token)
+#    for match in URL_RE.finditer(masked_body):
+#        token = match.group(0)
+#        clean, trailing = split_trailing_punctuation(token)
 
-        if trailing:
-            issues.append(Issue(
-                "ERROR",
-                f"Row {row_num}: field 'Text' for '{title}' contains URL '{token}' with trailing punctuation. "
-                f"Fix: move '{trailing}' outside the URL so the link is '{clean}'."
-            ))
+#        if trailing:
+#            issues.append(Issue(
+#                "ERROR",
+#                f"Row {row_num}: field 'Text' for '{title}' contains URL '{token}' with trailing punctuation. "
+#                f"Fix: move '{trailing}' outside the URL so the link is '{clean}'."
+#            ))
 
-        issues.append(Issue(
-            "ERROR",
-            f"Row {row_num}: field 'Text' for '{title}' contains bare URL '{clean}'. "
-            "Fix: convert it to markdown with descriptive text, e.g. [More details](https://example.com)."
-        ))
+#        issues.append(Issue(
+#            "ERROR",
+#            f"Row {row_num}: field 'Text' for '{title}' contains bare URL '{clean}'. "
+#            "Fix: convert it to markdown with descriptive text, e.g. [More details](https://example.com)."
+#        ))
 
     for match in INLINE_EMAIL_RE.finditer(masked_body):
         token = match.group(0)

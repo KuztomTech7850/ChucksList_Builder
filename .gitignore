@@ -13,9 +13,12 @@ contacts/
 *.xlsx
 *.ods
 *.ods.bak
+*.zip
 
 # --- Generated outputs ---
 *final_output.html
+*Bulletin.html
+*Events.html
 
 # --- Media / assets ---
 Images/
