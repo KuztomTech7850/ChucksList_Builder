@@ -59,7 +59,7 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJ_DIR   = SCRIPT_DIR.parent
-INPUT_CSV  = PROJ_DIR / "Events.csv"
+INPUT_CSV  = PROJ_DIR / "events" / "Events.csv"
 OUTPUT_CSV = SCRIPT_DIR / "events_data.csv"
 
 REQUIRED_COLS = ["Received", "Starts", "Expires", "Title", "Text"]

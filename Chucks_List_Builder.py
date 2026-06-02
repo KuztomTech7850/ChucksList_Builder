@@ -68,24 +68,24 @@ PIPELINE_STAGES = {
     "bulletin": [
         {
             "name": "Bulletin Preprocess",
-            "script": PROJ_DIR / "bulletins" / "preprocess_bulletin_text.py",
+            "script": PROJ_DIR / "ChucksBulletin" / "bulletins" / "preprocess_bulletin_text.py",
             "pass_callout": False,
         },
         {
             "name": "Bulletin Compile",
-            "script": PROJ_DIR / "bulletins" / "compile_bulletin.py",
+            "script": PROJ_DIR / "ChucksBulletin" / "bulletins" / "compile_bulletin.py",
             "pass_callout": True,
         },
     ],
     "events": [
         {
             "name": "Events Preprocess",
-            "script": PROJ_DIR / "events" / "preprocess_events_text.py",
+            "script": PROJ_DIR / "ChucksEvents" / "events" / "preprocess_events_text.py",
             "pass_callout": False,
         },
         {
             "name": "Events Compile",
-            "script": PROJ_DIR / "events" / "compile_events.py",
+            "script": PROJ_DIR / "ChucksEvents" / "events" / "compile_events.py",
             "pass_callout": True,
         },
     ],
