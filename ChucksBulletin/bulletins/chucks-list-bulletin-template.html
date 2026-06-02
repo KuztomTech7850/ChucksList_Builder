@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- REQUIRED: prevent auto-linking of phone, address, email, dates, URLs in mobile clients -->
+  <meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <!-- REQUIRED: light/dark support for email clients that honor color-scheme -->
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <title>Chuck's List Bulletin</title>
+
+  <!--
+  CHUCK'S LIST BULLETIN – PRODUCTION TEMPLATE
+
+  PURPOSE
+  - Local community bulletin for our area in and around Montezuma County.
+  - Styled to match the Events edition: same colors, contrast, type sizes, and dark-mode behavior.
+  - Fixed section groups for Bulletin content; engineers duplicate blocks, not reinvent layouts.
+
+  NON-NEGOTIABLE / DO NOT REMOVE (SHARED WITH EVENTS)
+  - Large readable text + generous line spacing (accessibility).
+  - Strong contrast, alternating row colors for posts.
+  - Preheader + view-in-browser block at the top.
+  - Live text for all critical information (no text baked into images).
+  - Footer with sender, unsubscribe, and feedback links.
+
+  BULLETIN-SPECIFIC REQUIREMENTS
+  - Table of Contents with anchors per canonical Bulletin section:
+      1. Urgent Bulletins
+      2. Housing Opportunities
+      3. Swap Market
+      4. Local Services & Help
+      5. Community Announcements
+  - Images are allowed and must always appear AFTER the text
+    inside a framed inner table, clickable to open in a new tab.
+  - Builder must enforce unique, deterministic anchor IDs for entries
+    (e.g., section slug + index) to avoid collisions; this template defines
+    section-level anchors only.
+
+  NOTES FOR ENGINEERS
+  - This file is the BULLETIN edition; the EVENTS edition reuses the same
+    CSS and overall structure but uses different section groups and header copy.
+-->
+
+    <style type="text/css">
+    /* ---------- Base reset ---------- */
+    body, table, td, p, a {
+      margin: 0;
+      padding: 0;
+      -webkit-text-size-adjust: 100% !important;
+      -ms-text-size-adjust: 100% !important;
+      text-size-adjust: 100% !important;
+    }
+
+    table {
+      border-collapse: collapse;
+      border-spacing: 0;
+      mso-table-lspace: 0pt;
+      mso-table-rspace: 0pt;
+    }
+
+    img {
+      border: 0;
+      outline: none;
+      text-decoration: none;
+      display: block;
+      max-width: 100%;
+      height: auto;
+      -ms-interpolation-mode: bicubic;
+    }
+
+    /* ---------- Color system ---------- */
+    body {
+      width: 100% !important;
+      min-width: 100%;
+      background-color: #f5efe4;
+      color: #221d17;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    a {
+      color: #b66324;
+      text-decoration: underline;
+    }
+
+    .wrapper {
+      width: 100%;
+      background-color: #f5efe4;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 720px;
+      background-color: #fdf9f3;
+      border: 1px solid #d9cfc0;
+    }
+
+    .preheader {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 14px;
+      line-height: 22px;
+      color: #665b50;
+    }
+
+    /* Hidden preheader is used only in Bulletin, safe for Events too */
+    .hidden-preheader {
+      display: none !important;
+      visibility: hidden;
+      opacity: 0;
+      color: transparent;
+      height: 0;
+      width: 0;
+      overflow: hidden;
+      mso-hide: all;
+      font-size: 1px;
+      line-height: 1px;
+      max-height: 0;
+      max-width: 0;
+    }
+
+    .header-band,
+    .footer-band {
+      background-color: #2b3d2e;
+    }
+
+    .header-band {
+      border-bottom: 4px solid #b66324;
+    }
+
+    .footer-band {
+      border-top: 3px solid #c1732a;
+    }
+
+    .eyebrow {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12px;
+      line-height: 18px;
+      text-transform: uppercase;
+      letter-spacing: 1.4px; /* compromise between 1.2 and 1.6 */
+      font-weight: bold;
+      color: #b8c3ab;
+    }
+
+    .headline {
+      font-family: Georgia, "Times New Roman", Times, serif;
+      font-size: 28px;
+      line-height: 36px;
+      font-weight: bold;
+      color: #f5efe4;
+    }
+
+    .header-body-copy {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 18px;
+      line-height: 28px;
+      color: #d7cec0;
+    }
+
+    .section-label {
+      background-color: #3d6b72;
+      border-top: 1px solid #2e5259;
+      border-bottom: 1px solid #2e5259;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 13px;
+      line-height: 18px;
+      text-transform: uppercase;
+      letter-spacing: 1.3px;
+      font-weight: bold;
+      color: #e8f3f4;
+    }
+
+    .row-white {
+      background-color: #fdf9f3;
+    }
+
+    .row-alt {
+      background-color: #f7f2e8;
+    }
+
+    .section-title {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 22px;
+      line-height: 30px;
+      font-weight: bold;
+      color: #1a1612;
+    }
+
+    /* Used heavily in Events, harmless in Bulletin */
+    .date-line {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 18px;
+      line-height: 28px;
+      font-weight: bold;
+      color: #b66324;
+    }
+
+    .body-copy,
+    .body-copy p,
+    .body-copy li {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 20px;
+      line-height: 30px;
+      color: #221d17;
+    }
+
+    .small-label {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 13px;
+      line-height: 20px;
+      font-weight: bold;
+      color: #54623f;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    /* Mostly Bulletin; still fine in Events for meta lines */
+    .meta-line {
+      padding-top: 10px;
+      font-size: 20px;
+      line-height: 30px;
+      color: #221d17;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .callout {
+      background-color: #eef2e8;
+      border-left: 4px solid #6b7c52;
+      border-top: 1px solid #c8d4b8;
+      border-right: 1px solid #c8d4b8;
+      border-bottom: 1px solid #c8d4b8;
+      padding: 16px;
+    }
+
+    .footer-copy {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 13px;
+      line-height: 21px;
+      color: #b8c3ab;
+    }
+
+    .footer-copy a {
+      color: #e19a60;
+    }
+
+    .divider {
+      border-top: 1px solid #d9cfc0;
+      font-size: 0;
+      line-height: 0;
+    }
+
+    /* ---------- Dark mode (shared) ---------- */
+    @media (prefers-color-scheme: dark) {
+      body, .wrapper {
+        background-color: #141413 !important;
+      }
+
+      .container {
+        background-color: #1e221b !important;
+        border-color: #2f322b !important;
+      }
+
+      .preheader {
+        color: #95897c !important;
+      }
+
+      .header-band,
+      .footer-band {
+        background-color: #1a241b !important;
+      }
+
+      .headline {
+        color: #f3eadb !important;
+      }
+
+      .header-body-copy {
+        color: #b7ad9f !important;
+      }
+
+      .section-label {
+        background-color: #244145 !important;
+        border-color: #192d30 !important;
+        color: #d6edf0 !important;
+      }
+
+      .row-white {
+        background-color: #232924 !important;
+      }
+
+      .row-alt {
+        background-color: #1e221c !important;
+      }
+
+      .section-title {
+        color: #eedfc8 !important;
+      }
+
+      .date-line {
+        color: #e19a60 !important;
+      }
+
+      .body-copy,
+      .body-copy p,
+      .body-copy li,
+      .meta-line {
+        color: #d3c7b8 !important;
+      }
+
+      .small-label {
+        color: #9bb27c !important;
+      }
+
+      .callout {
+        background-color: #1a241b !important;
+        border-left-color: #6b7c52 !important;
+        border-top-color: #31422f !important;
+        border-right-color: #31422f !important;
+        border-bottom-color: #31422f !important;
+      }
+
+      .divider {
+        border-top-color: #384038 !important;
+      }
+
+      a {
+        color: #e19a60 !important;
+      }
+    }
+
+    /* ---------- Mobile tweaks (shared) ---------- */
+    @media only screen and (max-width: 620px) {
+      .container {
+        width: 100% !important;
+      }
+
+      .mobile-pad {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+      }
+
+      .headline {
+        font-size: 24px !important;
+        line-height: 32px !important;
+      }
+
+      .section-title {
+        font-size: 20px !important;
+        line-height: 28px !important;
+      }
+
+      .header-body-copy {
+        font-size: 17px !important;
+        line-height: 27px !important;
+      }
+
+      .body-copy,
+      .body-copy p,
+      .body-copy li,
+      .meta-line,
+      .date-line {
+        font-size: 19px !important;
+        line-height: 29px !important;
+      }
+    }
+  </style>
+</head>
+
+<body style="margin:0; padding:0; background-color:#f5efe4;">
+  <!-- REQUIRED: HIDDEN PREHEADER. Keep, but update text as needed. -->
+  <div class="hidden-preheader">
+    Community bulletin for our local area, in and around Montezuma County.
+  </div>
+
+  <center class="wrapper" style="width:100%; background-color:#f5efe4;">
+
+    <!-- REQUIRED: PREHEADER / VIEW-IN-BROWSER BLOCK. Do not remove. -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; background-color:#f5efe4;">
+      <tr>
+        <td align="center" style="padding:18px 12px 8px 12px;">
+          <table role="presentation" class="container" width="720" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:720px; background-color:#fdf9f3; border:1px solid #d9cfc0;">
+            <tr>
+              <td class="preheader mobile-pad" align="center" style="padding:14px 20px;">
+                Can't read this email easily?
+                <a href="$[LI:VIEWINBROWSER]$" target="_blank" rel="noopener noreferrer" style="color:#b66324; text-decoration:underline;">View this email in a browser</a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- HEADER + BODY CONTAINER -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; background-color:#f5efe4;">
+      <tr>
+        <td align="center" style="padding:0 12px 18px 12px;">
+          <table role="presentation" class="container" width="720" cellpadding="0" cellspacing="0" border="0">
+
+            <!-- HEADER BAND (style shared with Events; words differ) -->
+            <tr>
+              <td class="header-band mobile-pad" style="padding:28px 28px 26px 28px;">
+                <div class="eyebrow">
+                  Chuck's List &mdash; Bulletin
+                </div>
+
+                <div class="headline" style="padding-top:8px;">
+                  Community bulletin for our local area
+                </div>
+
+                <div class="header-body-copy" style="padding-top:12px;">
+                  Serving neighbors in and around Montezuma County with housing leads, swap offers, local services, and community announcements. This is a practical, local bulletin for everyone in our community.
+                </div>
+
+                <!-- EXPLICIT SUBMISSION LINE -->
+                <div class="header-body-copy" style="padding-top:10px; font-size:15px; line-height:22px;">
+                  Send your post to <a href="mailto:ChucksList@McAfeeFarm.biz" style="color:#e19a60; text-decoration:underline;">ChucksList@McAfeeFarm.biz</a> or reply to this email.
+                </div>
+              </td>
+            </tr>
+
+                        <!-- TABLE OF CONTENTS (REQUIRED FOR BULLETIN; anchor IDs must stay stable). -->
+            <tr>
+              <td class="row-white mobile-pad" style="padding:18px 28px 8px 28px;">
+                <div class="body-copy" style="font-size:18px; line-height:26px;">
+                  <strong>In this Bulletin</strong>
+                </div>
+                <div class="body-copy" style="padding-top:8px; font-size:18px; line-height:26px;">
+                  <!--
+                    TOC RULES:
+                    - Each item links to the first entry in that section.
+                    - Anchor IDs must match the section wrappers below.
+                    - Entry-level anchor generation (and handling duplicate titles)
+                      is handled by the builder, not this template.
+                  -->
+                  <ul style="margin:8px 0 0 20px; padding:0;">
+                    <li><a href="#section-urgent-bulletins">Urgent Bulletins</a></li>
+                    <li><a href="#section-housing-opportunities">Housing Opportunities</a></li>
+                    <li><a href="#section-swap-market">Swap Market</a></li>
+                    <li><a href="#section-local-services-help">Local Services &amp; Help</a></li>
+                    <li><a href="#section-community-announcements">Community Announcements</a></li>
+                  </ul>
+                </div>
+              </td>
+            </tr>
+
+            <!-- TOP CALLOUT (GLOBAL) -->
+            <tr>
+              <td class="row-white mobile-pad" style="padding:18px 28px;">
+                <div class="callout body-copy">
+                  This edition groups posts into urgent notices, housing, swaps, services,
+                  and community announcements. New posts are added as they arrive; if you
+                  do not see your listing, please resend it for the next issue.
+                </div>
+              </td>
+            </tr>
+
+            <!-- SECTION: URGENT BULLETINS -->
+            <tr id="section-urgent-bulletins">
+              <td class="section-label mobile-pad" style="padding:10px 28px;">
+                Urgent Bulletins
+              </td>
+            </tr>
+
+            <!-- URGENT POST WITH FRAMED IMAGE -->
+            <tr>
+              <td class="row-white mobile-pad" style="padding:22px 28px;">
+                <div class="section-title">
+                  Example: Temporary Road Closure on County Route
+                </div>
+
+                <div class="body-copy" style="padding-top:10px;">
+                  County crews will close part of the road for maintenance on [DAY, DATE]
+                  from [TIME] to [TIME]. Please allow extra time and follow posted detours.
+                </div>
+
+                <div class="body-copy" style="padding-top:10px;">
+                  Local traffic will still be able to reach driveways and homes, but there
+                  may be short delays while equipment is moved. Emergency vehicles will be
+                  given priority access.
+                </div>
+
+                <!-- OPTIONAL FRAMED IMAGE AFTER TEXT -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                       style="width:100%; background-color:#efe8dc; border:1px solid #d9cfc0; margin-top:14px;">
+                  <tr>
+                    <td style="padding:12px;">
+                      <a href="<!--URGENT_IMAGE_HREF-->" target="_blank" rel="noopener noreferrer"
+                         style="display:block; text-decoration:none;">
+                        <img src="<!--URGENT_IMAGE_SRC-->"
+                             alt="Detour map or notice for the temporary road closure"
+                             style="display:block; width:100%; max-width:100%; height:auto;">
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <div class="meta-line" style="padding-top:14px;">
+                  <span class="small-label">Contact</span><br>
+                  Road &amp; Bridge Department, [Phone number] or reply to this email.
+                </div>
+
+                <div class="meta-line" style="padding-top:10px;">
+                  <span class="small-label">Optional detail</span><br>
+                  Work is weather dependent; dates and times may shift if conditions change.
+                </div>
+              </td>
+            </tr>
+
+            <!-- DIVIDER -->
+            <tr>
+              <td style="padding:0; background-color:#fdf9f3;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td class="divider">&nbsp;</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- URGENT POST WITHOUT IMAGE -->
+            <tr>
+              <td class="row-alt mobile-pad" style="padding:22px 28px;">
+                <div class="section-title">
+                  Example: Lost Dog Near the River Trail
+                </div>
+
+                <div class="body-copy" style="padding-top:10px;">
+                  Medium-sized brown dog last seen near the river trail on [DAY] afternoon.
+                  Friendly but nervous around new people. Wearing a blue collar with tags.
+                </div>
+
+                <div class="meta-line" style="padding-top:14px;">
+                  <span class="small-label">Contact</span><br>
+                  Call or text [Phone number] if you see this dog, or reply to this email.
+                </div>
+
+                <div class="meta-line" style="padding-top:10px;">
+                  <span class="small-label">Optional detail</span><br>
+                  Last known location: near the trailhead parking lot around [TIME].
+                </div>
+              </td>
+            </tr>
+
+            <!-- DIVIDER -->
+            <tr>
+              <td style="padding:0; background-color:#f7f2e8;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td class="divider">&nbsp;</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- SECTION: HOUSING OPPORTUNITIES -->
+            <tr id="section-housing-opportunities">
+              <td class="section-label mobile-pad" style="padding:10px 28px;">
+                Housing Opportunities
+              </td>
+            </tr>
+
+            <tr>
+              <td class="row-white mobile-pad" style="padding:22px 28px;">
+                <div class="section-title">
+                  Example: 2-Bedroom Rental in Town
+                </div>
+
+                <div class="body-copy" style="padding-top:10px;">
+                  Two-bedroom, one-bath home available starting [DATE]. Located within town
+                  limits with easy access to grocery stores and schools.
+                </div>
+
+                <div class="body-copy" style="padding-top:10px;">
+                  Non-smoking. Pets considered with an additional deposit. Washer and dryer
+                  included.
+                </div>
+
+                <div class="meta-line" style="padding-top:14px;">
+                  <span class="small-label">Contact</span><br>
+                  [Phone number] or reply to this email to request a viewing time.
+                </div>
+
+                <div class="meta-line" style="padding-top:10px;">
+                  <span class="small-label">Optional detail</span><br>
+                  Rent: [Amount] per month plus utilities. Located near [neighborhood/landmark].
+                </div>
+              </td>
+            </tr>
+
+            <!-- DIVIDER -->
+            <tr>
+              <td style="padding:0; background-color:#fdf9f3;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td class="divider">&nbsp;</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- SECTION: SWAP MARKET -->
+            <tr id="section-swap-market">
+              <td class="section-label mobile-pad" style="padding:10px 28px;">
+                Swap Market
+              </td>
+            </tr>
+
+            <tr>
+              <td class="row-alt mobile-pad" style="padding:22px 28px;">
+                <div class="section-title">
+                  Example: Firewood to Trade for Yard Work
+                </div>
+
+                <div class="body-copy" style="padding-top:10px;">
+                  Seasoned firewood available in exchange for light yard work. Looking for
+                  help with raking, trimming, and hauling brush.
+                </div>
+
+                <div class="meta-line" style="padding-top:14px;">
+                  <span class="small-label">Contact</span><br>
+                  Reply to this email to discuss timing and how much work you are able to do.
+                </div>
+
+                <div class="meta-line" style="padding-top:10px;">
+                  <span class="small-label">Optional detail</span><br>
+                  Located just outside town; easy truck access for loading.
+                </div>
+              </td>
+            </tr>
+
+            <!-- DIVIDER -->
+            <tr>
+              <td style="padding:0; background-color:#f7f2e8;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td class="divider">&nbsp;</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- SECTION: LOCAL SERVICES & HELP -->
+            <tr id="section-local-services-help">
+              <td class="section-label mobile-pad" style="padding:10px 28px;">
+                Local Services &amp; Help
+              </td>
+            </tr>
+
+            <tr>
+              <td class="row-white mobile-pad" style="padding:22px 28px;">
+                <div class="section-title">
+                  Example: Snow Shoveling and Yard Help
+                </div>
+
+                <div class="body-copy" style="padding-top:10px;">
+                  Offering snow shoveling in winter and basic yard work during warmer months.
+                  Sliding scale available for elders and people on fixed incomes.
+                </div>
+
+                <div class="meta-line" style="padding-top:14px;">
+                  <span class="small-label">Contact</span><br>
+                  Call or text [Phone number] between [HOURS], or reply to this email.
+                </div>
+
+                <div class="meta-line" style="padding-top:10px;">
+                  <span class="small-label">Optional detail</span><br>
+                  Serving addresses within a short drive of town.
+                </div>
+              </td>
+            </tr>
+
+            <!-- DIVIDER -->
+            <tr>
+              <td style="padding:0; background-color:#fdf9f3;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td class="divider">&nbsp;</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- SECTION: COMMUNITY ANNOUNCEMENTS -->
+            <tr id="section-community-announcements">
+              <td class="section-label mobile-pad" style="padding:10px 28px;">
+                Community Announcements
+              </td>
+            </tr>
+
+            <tr>
+              <td class="row-alt mobile-pad" style="padding:22px 28px;">
+                <div class="section-title">
+                  Example: Neighborhood Gathering at the Park
+                </div>
+
+                <div class="body-copy" style="padding-top:10px;">
+                  Neighbors are invited to a casual gathering at the park on [DAY, DATE] at
+                  [TIME]. Bring a chair, something to share if you wish, and say hello.
+                </div>
+
+                <div class="meta-line" style="padding-top:14px;">
+                  <span class="small-label">Contact</span><br>
+                  Questions? Reply to this email and the organizer will follow up.
+                </div>
+              </td>
+            </tr>
+
+            <!-- BOTTOM CALLOUT (GLOBAL) -->
+            <tr>
+              <td class="row-white mobile-pad" style="padding:22px 28px;">
+                <div class="callout body-copy">
+                  Be cautious of offers that ask for advance payment or personal information.
+                  Chuck's List is community-run; use your judgment, meet in public spaces
+                  when possible, and check references when needed.
+                </div>
+              </td>
+            </tr>
+
+            <!-- REQUIRED FOOTER BLOCK: keep structure; update addresses/URLs only as operations change. -->
+            <tr>
+              <td style="padding:18px 0 0 0; background-color:#f5efe4;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; background-color:#2b3d2e; border-top:3px solid #c1732a;" class="footer-band">
+                  <tr>
+                    <td class="mobile-pad footer-copy" align="center" style="padding:20px 24px 6px 24px;">
+                      This email was sent by
+                      <a href="mailto:ChucksList@McAfeeFarm.biz" style="color:#e89050; text-decoration:underline;">ChucksList@McAfeeFarm.biz</a>
+                      to
+                      <a href="mailto:$[UD:CONTACT_EMAIL]$" style="color:#e89050; text-decoration:underline;">$[UD:CONTACT_EMAIL]$</a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="mobile-pad footer-copy" align="center" style="padding:6px 24px;">
+                      Not interested?
+                      <a href="$[LI:UNSUBSCRIBE]$" target="_blank" rel="noopener noreferrer" style="color:#e89050; text-decoration:underline;">Unsubscribe</a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="mobile-pad footer-copy" align="center" style="padding:6px 24px;">
+                      Feedback or corrections:
+                      <a href="mailto:THill@techspecific.com" style="color:#e89050; text-decoration:underline;">THill@techspecific.com</a>
+                      &nbsp;&middot;&nbsp;
+                      <a href="mailto:Chuck@mcafeefarm.biz" style="color:#e89050; text-decoration:underline;">Chuck@mcafeefarm.biz</a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="mobile-pad footer-copy" align="center" style="padding:6px 24px 24px 24px;">
+                      Chuck's List powered by
+                      <a href="https://www.techspecific.com" target="_blank" rel="noopener noreferrer" style="color:#e89050; text-decoration:underline;">TechSpecific&trade;</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </center>
+</body>
+</html>
