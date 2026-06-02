@@ -10,6 +10,7 @@ CSV column contract (expected / accepted aliases):
 Accepted date formats:
   - YYYY-MM-DD
   - MM/DD/YY
+  - M/D/YYYY
 
 Inclusion rule:
   Received <= issue_date <= Expires
@@ -82,6 +83,7 @@ SECTION_ALIASES = {
 
 DATE_RE_ISO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 DATE_RE_SHORT = re.compile(r"^(\d{1,2})/(\d{1,2})/(\d{2})$")
+DATE_RE_LONG = re.compile(r"^(\d{1,2})/(\d{1,2})/(\d{4})$")
 
 EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$")
 INLINE_EMAIL_RE = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
@@ -112,6 +114,8 @@ class Issue:
 def emit(issue: Issue) -> None:
     print(f"  [{issue.level}] {issue.message}", file=sys.stderr)
 
+
+from datetime import date
 
 def parse_date(val: str, row_num: int, field: str) -> date | None:
     raw = (val or "").strip()
@@ -146,14 +150,37 @@ def parse_date(val: str, row_num: int, field: str) -> date | None:
             emit(Issue(
                 "WARN",
                 f"Row {row_num}: field '{field}' has invalid value '{raw}'. "
-                f"Fix: use a real MM/DD/YY date. Python error: {exc}. Item skipped."
+                f"Fix: use a real M/D/YY date. Python error: {exc}. Item skipped."
+            ))
+            return None
+
+    long_match = DATE_RE_LONG.match(raw)
+    if long_match:
+        try:
+            return date(
+                int(long_match.group(3)),
+                int(long_match.group(1)),
+                int(long_match.group(2)),
+            )
+        except ValueError as exc:
+            emit(Issue(
+                "WARN",
+                f"Row {row_num}: field '{field}' has invalid value '{raw}'. "
+                f"Fix: use a real M/D/YYYY date. Python error: {exc}. Item skipped."
             ))
             return None
 
     emit(Issue(
         "WARN",
+        f"Row {row_num}: field '{field}' has unrecognized value '{raw}'. "
+        "Fix: use YYYY-MM-DD, MM/DD/YY, or MM/DD/YYYY. Item skipped."
+    ))
+    return None
+
+    emit(Issue(
+        "WARN",
         f"Row {row_num}: field '{field}' has unrecognized date '{raw}'. "
-        "Fix: use YYYY-MM-DD or MM/DD/YY. Item skipped."
+        "Fix: use YYYY-MM-DD, MM/DD/YY, or M/D/YYYY. Item skipped."
     ))
     return None
 
