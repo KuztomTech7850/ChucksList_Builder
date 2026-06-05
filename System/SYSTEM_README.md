@@ -132,7 +132,7 @@ Complete every item before running the build.
 | Flag | Required | Default | Description |
 |---|---|---|---|
 | `--issue-date YYYY-MM-DD` | ✅ Yes | — | Publication date for this issue |
-| `--issue-type` | No | `both` | Which pipeline(s) to run: `bulletin`, `events`, or `both` |
+| `--issue-type bulletin\|events\|both` | No | `both` | Run bulletin only, events only, or both pipelines |
 | `--callout "TEXT"` | No | — | Top callout text; skips the interactive wizard if provided |
 | `--bottom-callout "TEXT"` | No | — | Bottom callout text; **only honored when `--callout` is also set** |
 | `--debug` | No | off | Enable verbose debug logging to stdout |
@@ -357,9 +357,11 @@ emails. This is production until Phase 2 is tested and proven equivalent.
 |---|---|---|
 | 1 | Document and stabilize current scripts | ✅ Complete |
 | 2 | Harden both preprocessors to parity | ✅ Complete |
-| 3 | Fix nested output folder bug (BUG-017) | 🔄 In progress |
-| 4 | TOC and section ordering (BUG-018, BUG-019) | ⬜ Planned |
-| 5 | Multiple Events grouping, rotation, NEW badge (BUG-020–BUG-022) | ⬜ Planned |
+| 3 | Fix log path and cross-validation paths (BUG-023, BUG-024) | 🔄 In Progress |
+| 4 | Fix nested output folder + duplicate files (BUG-017) | ⬜ Planned |
+| 5 | VS Code file-open fix, callout newline, [REMIND] verify (BUG-030, BUG-029, BUG-025) | ⬜ Planned |
+| 6 | Markdown auto-correct, TOC cleanup, section sort (BUG-026, BUG-019, BUG-018) | ⬜ Planned |
+| 7 | TOC visual hierarchy, multiple events grouping, rotation, NEW badge (BUG-020–BUG-022) | ⬜ Deferred post-migration |
 
 ### Phase 2 — cPanel Server Migration (near term)
 

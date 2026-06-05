@@ -282,18 +282,7 @@ The Builder forwards `[REMIND]` lines from stderr as `WARNING` level logs.
 
 ## Bug History
 
-All resolved. Do not reintroduce.
-
-| Bug | Root Cause | Fix |
-|---|---|---|
-| **Bug 1** — Callouts never prompted | Builder called compilers with no `--callout` arg; operator had no signal to customize | `emit_callout_reminders()` added; `--callout`/`--bottom-callout` wired through entrypoint |
-| **Bug 2** — Markdown links rendered as raw text in events email | `preprocess_events_text.py` missing `QUOTE_ALL` on `DictWriter`; `[]()` syntax written unquoted | `QUOTE_ALL` added |
-| **Bug 3** — "here" link not rendering | Resolved by Bug 2 fix |
-| **Bug 4** — All bulletins skipped; zero-item output exits 0 | `parse_date()` had no `M/D/YYYY` handler; LibreOffice exports `5/21/2026`; every row hit fallthrough | `DATE_RE_LONG` added at module level in both preprocessors |
-| **Bug 5** — Windows backslash paths in HTML `src`/`href` | Paths built with `Path` on Windows emit backslashes | `to_web_path()` using `Path.as_posix()` + `urllib.parse.quote` added to both compilers |
-| **Bug 6** — Pipe-delimited image field not split before render | Unsplit pipe-joined string passed into `src=` | `build_image_html()` splits on `\|` first |
-| **Bug 7** — False-positive Markdown validation errors | Naive parenthesis counting across full Body field fired on valid URLs containing `(` `)` (BurroFest URL) | Replaced with segment-targeted `[label](target)` validation |
-| **Bug 8** — `--debug` flag not defined in argparse | `add_argument("--debug", ...)` missing | Added |
+See [BUG_LIST](BUG_LIST.md)
 
 ---
 
@@ -302,21 +291,22 @@ All resolved. Do not reintroduce.
 The README is a living dashboard, not a one-time document. It must be updated
 in the same commit as any change to goals or BUG_LIST status.
 
-**After every session that changes goals or bugs:**
+**After every session that closes a bug or advances a goal:**
 
 | README section | When to update |
 |---|---|
-| **Active Goals** table | Any time the active goal changes or a staged goal is added/completed |
-| **Recent Fixes** table | Any time a bug moves to `Fixed` — add it to the top, drop the oldest entry if count exceeds 10 |
-| **Current Pipeline Status** table | Any time a bug's status changes (Open / In Progress / Fixed) |
+| **What's Being Worked On** | Any time the active goal or active bug list changes |
+| **Where This Is Headed** | Only if a phase completes or the long-term plan changes — rarely |
 
 **Rules:**
-- Active goal always occupies row 1 with status `🔄 Active`.
-- Table shows the active goal + next 4 staged goals maximum.
-- Recent Fixes table is a rolling window — currently 10 entries. The operator
-  may change the window size; document the new size here when it changes.
-- Never remove a goal row without confirming it is either completed or explicitly
-  deferred by the operator.
+- "What's Being Worked On" should list the 3–5 bugs currently in flight, each with
+  a one-line plain-English description. Remove a bug when it moves to Fixed.
+- Keep the language non-technical — this section is for anyone landing on the repo,
+  not just engineers.
+- Never remove the "Up next" line — always name the next milestone so the status
+  is self-evident without opening BUG_LIST.md.
+- Full bug history, priority order, and status details live in
+  [System/BUG_LIST.md](System/BUG_LIST.md) — do not duplicate them in the README.
 
 ---
 

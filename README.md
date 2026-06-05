@@ -38,7 +38,6 @@ Current focus:
 - **BUG-023** — Fix log path (writes to wrong folder — one-line fix)
 - **BUG-024** — Fix cross-validation paths (silent false-pass on every build — four-line fix)
 - **BUG-017** — Fix nested staging folder (`ChucksBulletin/ChucksBulletin/`)
-- **BUG-031** — Eliminate duplicate output files (same root cause as BUG-017)
 
 Up next: Migrate the pipeline to the cPanel server once the above are resolved.
 

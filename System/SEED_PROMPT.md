@@ -53,9 +53,8 @@ reflects the current triage priority order. Work bugs in the order listed there.
 1. **BUG-023** — Log path writes to `logs/` instead of `System/logs/` (one-line fix)
 2. **BUG-024** — `INTERMEDIATE_CSV` / `OUTPUT_FILES` point to wrong paths; cross-validation blind (four-line fix)
 3. **BUG-017** — Nested staging folder `ChucksBulletin/ChucksBulletin/` (In Progress)
-4. **BUG-031** — Duplicate output files outside staging folder (coordinate with BUG-017)
-5. **BUG-025** — Events callout `[REMIND]` not firing (needs code verification first)
-6. BUG-030, BUG-029, BUG-026, BUG-028, BUG-018, BUG-019, BUG-032, BUG-027, BUG-033 — in that order
+4. **BUG-025** — Events callout `[REMIND]` not firing (needs code verification first)
+5. BUG-030, BUG-029, BUG-026, BUG-028, BUG-018, BUG-019, BUG-032, BUG-027, BUG-033 — in that order
 
 **Do not start Goal 4 (server migration) until the operator explicitly
 declares Goal 3 complete or approves the handoff.**
