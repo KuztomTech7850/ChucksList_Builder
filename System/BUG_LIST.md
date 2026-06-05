@@ -300,8 +300,8 @@ Priority order: work top to bottom. Do not skip ahead.
 | **Title** | `__main__` block called wrong function name and used wrong kwarg |
 | **Status** | Fixed |
 | **Area** | `Chucks_List_Builder.py` |
-| **Symptom** | The bulletin pipeline's `__main__` call invoked `compile_events(...)` instead of `compile_bulletins(...)`. Bulletins were never compiled regardless of CLI flags. |
-| **Cause / Fix** | Corrected function name to `compile_bulletins(...)`, kwarg to `top_callout=args.callout`, and indent to 4 spaces. |
+| **Symptom** | The bulletin pipeline's `__main__` call invoked `compile_events(...)` instead of `compile_bulletin(...)`. Bulletins were never compiled regardless of CLI flags. |
+| **Cause / Fix** | Corrected function name to `compile_bulletin(...)`, kwarg to `top_callout=args.callout`, and indent to 4 spaces. |
 
 ### BUG-013
 | Field | Value |

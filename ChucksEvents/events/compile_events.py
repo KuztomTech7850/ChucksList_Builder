@@ -69,7 +69,7 @@ from urllib.parse import quote
 SCRIPT_DIR  = Path(__file__).resolve().parent
 PROJ_DIR    = SCRIPT_DIR.parent
 INPUT_CSV   = SCRIPT_DIR / "events_data.csv"
-OUTPUT_DIR  = PROJ_DIR / "ChucksEvents"
+OUTPUT_DIR  = PROJ_DIR
 OUTPUT_HTML = SCRIPT_DIR / "chucks_events_final_output.html"
 
 MAX_INLINE_IMAGES = 3
@@ -1172,28 +1172,24 @@ def compile_events(
             """.rstrip()
         )
 
-    full_html = build_full_html(
-        issue_date=issue_date,
-        toc_html=toc_html,
-        section_blocks=section_blocks,
-        top_callout=callout or DEFAULT_TOP_CALLOUT,
-        bottom_callout=bottom_callout or DEFAULT_BOTTOM_CALLOUT,
-    )
+      full_html = build_full_html(
+          issue_date=issue_date,
+          toc_html=toc_html,
+          section_blocks=section_blocks,
+          top_callout=callout or DEFAULT_TOP_CALLOUT,
+          bottom_callout=bottom_callout or DEFAULT_BOTTOM_CALLOUT,
+      )
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+      final_output = PROJ_DIR / "chucks_events_final_output.html"
 
-    try:
-        OUTPUT_HTML.write_text(full_html, encoding="utf-8")
-        staging_copy = OUTPUT_DIR / "chucks_events_final_output.html"
-        staging_copy.write_text(full_html, encoding="utf-8")
-        print(f"  [OK] Events HTML written: {OUTPUT_HTML}")
-        print(f"  [OK] Events staging copy: {staging_copy}")
-    except Exception as exc:
-        print(f"ERROR writing output: {exc}", file=sys.stderr)
-        return 1
+      try:
+          final_output.write_text(full_html, encoding="utf-8")
+          print(f"  [OK] Events HTML written: {final_output}")
+      except Exception as exc:
+          print(f"ERROR writing output: {exc}", file=sys.stderr)
+          return 1
 
-    return 0
-
+      return 0
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compile events HTML output.")

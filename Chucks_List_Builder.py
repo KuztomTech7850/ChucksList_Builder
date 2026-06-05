@@ -50,6 +50,8 @@ from datetime import date, datetime
 from pathlib import Path
 
 PROJ_DIR = Path(__file__).resolve().parent
+LOGS_DIR = PROJ_DIR / "System" / "logs"   # BUG-023: was PROJ_DIR / "logs"
+ERROR_LOG = LOGS_DIR / "preprocess_errors.jsonl"
 
 # ---------------------------------------------------------------------------
 # Feature flag — HTML diff against previous run snapshot
@@ -69,24 +71,20 @@ PIPELINE_STAGES = {
         {
             "name": "Bulletin Preprocess",
             "script": PROJ_DIR / "ChucksBulletin" / "bulletins" / "preprocess_bulletin_text.py",
-            "pass_callout": False,
         },
         {
             "name": "Bulletin Compile",
             "script": PROJ_DIR / "ChucksBulletin" / "bulletins" / "compile_bulletin.py",
-            "pass_callout": True,
         },
     ],
     "events": [
         {
             "name": "Events Preprocess",
             "script": PROJ_DIR / "ChucksEvents" / "events" / "preprocess_events_text.py",
-            "pass_callout": False,
         },
         {
             "name": "Events Compile",
             "script": PROJ_DIR / "ChucksEvents" / "events" / "compile_events.py",
-            "pass_callout": True,
         },
     ],
 }
@@ -99,8 +97,8 @@ INTERMEDIATE_CSV = {
 
 # Final HTML produced by each compile stage
 OUTPUT_FILES = {
-    "bulletin": PROJ_DIR / "bulletins" / "chucks_bulletin_final_output.html",
-    "events":   PROJ_DIR / "events"    / "chucks_events_final_output.html",
+    "bulletin": PROJ_DIR / "ChucksBulletin" / "bulletins" / "chucks_bulletin_final_output.html",
+    "events": PROJ_DIR / "ChucksEvents" / "events" / "chucks_events_final_output.html",
 }
 
 # ---------------------------------------------------------------------------
@@ -115,25 +113,26 @@ THICK_DIVIDER = "═" * 64
 # ---------------------------------------------------------------------------
 
 def setup_logging(log_to_file: bool, issue_date: str) -> logging.Logger:
-    logger = logging.getLogger("chucks_builder")
-    logger.setLevel(logging.DEBUG)
-    fmt = logging.Formatter("%(asctime)s  %(levelname)-8s  %(message)s", datefmt="%H:%M:%S")
+    logger = logging.getLogger("chucks_list_builder")
+    logger.setLevel(logging.INFO)
+    logger.handlers.clear()
 
-    ch = logging.StreamHandler(sys.stdout)
-    ch.setLevel(logging.DEBUG)
-    ch.setFormatter(fmt)
-    logger.addHandler(ch)
+    formatter = logging.Formatter("%(asctime)s  %(levelname)-8s  %(message)s", "%H:%M:%S")
+
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
 
     if log_to_file:
-        logs_dir = PROJ_DIR / "logs"
-        logs_dir.mkdir(exist_ok=True)
-        ts = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-        log_file = logs_dir / f"build_{ts}.log"
-        fh = logging.FileHandler(log_file, encoding="utf-8")
-        fh.setLevel(logging.DEBUG)
-        fh.setFormatter(fmt)
-        logger.addHandler(fh)
-        logger.info(f"Log file: {log_file}")
+        logs_dir = PROJ_DIR / "System" / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        log_file = logs_dir / f"build_{issue_date}_{datetime.now().strftime('%H%M%S')}.log"
+
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+        logger.info("Log file: %s", log_file)
 
     return logger
 

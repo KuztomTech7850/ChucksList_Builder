@@ -35,7 +35,7 @@ IMAGE HANDLING CONTRACT
 CHANGELOG
   2026-05-31  Fix __main__ block: corrected 3-space indent (IndentationError causing
               silent exit-0 with no output), fixed wrong function name compile_events()
-              -> compile_bulletins(), and fixed wrong kwarg callout= -> top_callout=.
+              -> compile_bulletin(), and fixed wrong kwarg callout= -> top_callout=.
   2026-06-01  P1-B / Bug 5: add to_web_path() helper; all asset src= and href= values
               now normalized via Path.as_posix() + urllib.parse.quote — never Windows
               backslash paths.
@@ -66,7 +66,7 @@ from urllib.parse import quote
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJ_DIR   = SCRIPT_DIR.parent
 INPUT_CSV  = SCRIPT_DIR / "bulletins_data.csv"
-OUTPUT_DIR = PROJ_DIR / "ChucksBulletin"
+OUTPUT_DIR = PROJ_DIR
 OUTPUT_HTML = SCRIPT_DIR / "chucks_bulletin_final_output.html"
 
 MAX_INLINE_IMAGES = 3
@@ -625,7 +625,7 @@ def read_rows() -> list[tuple[int, dict[str, str]]] | None:
       but has no data rows (all filtered upstream; not a compile error).
       None — hard error (file missing, unreadable, or structurally broken).
 
-    Returning None vs [] lets compile_bulletins() distinguish a hard failure
+    Returning None vs [] lets compile_bulletin() distinguish a hard failure
     from a legitimately empty date-filtered result.
     """
     if not INPUT_CSV.exists():
@@ -1015,10 +1015,10 @@ def build_full_html(
 # Compile entrypoint
 # ---------------------------------------------------------------------------
 
-def compile_bulletins(
+ddef compile_bulletin(
     issue_date: str,
-    top_callout: str,
-    bottom_callout: str,
+    top_callout: str | None = None,
+    bottom_callout: str | None = None,
 ) -> int:
     rows = read_rows()
 
@@ -1093,45 +1093,41 @@ def compile_bulletins(
                 )
             )
 
-    full_html = build_full_html(
+        full_html = build_full_html(
         issue_date=issue_date,
-        top_callout=top_callout or DEFAULT_TOP_CALLOUT,
-        bottom_callout=bottom_callout or DEFAULT_BOTTOM_CALLOUT,
         toc_html=toc_html,
         section_blocks=section_blocks,
+        top_callout=callout or DEFAULT_TOP_CALLOUT,
+        bottom_callout=bottom_callout or DEFAULT_BOTTOM_CALLOUT,
     )
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    final_output = PROJ_DIR / "chucks_bulletin_final_output.html"
 
     try:
-        OUTPUT_HTML.write_text(full_html, encoding="utf-8")
-        staging_copy = OUTPUT_DIR / "chucks_bulletin_final_output.html"
-        staging_copy.write_text(full_html, encoding="utf-8")
-        print(f"  [OK] Bulletin HTML written: {OUTPUT_HTML}")
-        print(f"  [OK] Bulletin staging copy: {staging_copy}")
+        final_output.write_text(full_html, encoding="utf-8")
+        print(f"  [OK] Bulletin HTML written: {final_output}")
     except Exception as exc:
-        print(f"ERROR writing output HTML: {exc}", file=sys.stderr)
+        print(f"ERROR writing output: {exc}", file=sys.stderr)
         return 1
 
     return 0
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compile bulletin HTML output.")
     parser.add_argument("--issue-date", required=True, help="Issue date YYYY-MM-DD")
     parser.add_argument(
         "--callout",
-        default="",
-        help="Top callout message. If omitted, the top callout box is suppressed entirely.",
+        default=None,
+        help="Optional top callout box text. If omitted, the top callout block is suppressed entirely.",
     )
     parser.add_argument(
         "--bottom-callout",
-        default=DEFAULT_BOTTOM_CALLOUT,
-        help="Bottom callout message shown near the footer.",
+        default=None,
+        help="Optional bottom callout box text override.",
     )
     args = parser.parse_args()
     sys.exit(
-        compile_bulletins(
+        compile_bulletin(
             issue_date=args.issue_date,
             top_callout=args.callout,
             bottom_callout=args.bottom_callout,
