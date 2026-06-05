@@ -66,17 +66,107 @@
 | **Status** | Open |
 | **Area** | `Chucks_List_Builder.py` — `setup_logging()` |
 | **Symptom** | When `--log-to-file` is used, the build log is written to `ChucksList_Builder/logs/` (repo root). The operator moved the logs folder to `ChucksList_Builder/System/logs/`. Logs either land in the wrong place or a new `logs/` directory is silently created at repo root. |
-| **Cause / Fix** | `setup_logging()` hardcodes `logs_dir = PROJ_DIR / "logs"`. Change to `PROJ_DIR / "System" / "logs"`. One-line fix. |
+| **Cause / Fix** | **Confirmed not yet fixed as of 2026-06-05.** `setup_logging()` hardcodes `logs_dir = PROJ_DIR / "logs"`. Change to `PROJ_DIR / "System" / "logs"`. One-line fix. |
 
 ### BUG-024
 | Field | Value |
 |---|---|
 | **ID** | BUG-024 |
-| **Title** | `INTERMEDIATE_CSV` and `OUTPUT_FILES` paths resolve to non-existent repo-root subdirectories |
+| **Title** | **Confirmed not yet fixed as of 2026-06-05.** `INTERMEDIATE_CSV` and `OUTPUT_FILES` paths resolve to non-existent repo-root subdirectories |
 | **Status** | Open |
 | **Area** | `Chucks_List_Builder.py` |
 | **Symptom** | On every build, two phantom directories (`ChucksList_Builder/bulletins/` and `ChucksList_Builder/events/`) are created at repo root. The CSV→HTML cross-validation silently finds nothing because `INTERMEDIATE_CSV` and `OUTPUT_FILES` point there instead of to `ChucksBulletin/bulletins/` and `ChucksEvents/events/`. Validation always reports "no data to compare" — a false pass. |
 | **Cause / Fix** | `PROJ_DIR` in the entry point resolves to the repo root. `INTERMEDIATE_CSV` and `OUTPUT_FILES` are defined as `PROJ_DIR / "bulletins" / ...` and `PROJ_DIR / "events" / ...`, which miss the `ChucksBulletin/` and `ChucksEvents/` parent folders. Fix: change both dicts to `PROJ_DIR / "ChucksBulletin" / "bulletins" / ...` and `PROJ_DIR / "ChucksEvents" / "events" / ...`. Four path corrections in `Chucks_List_Builder.py`. |
+
+### BUG-025
+| Field | Value |
+|---|---|
+| **ID** | BUG-025 |
+| **Title** | Callout `[REMIND]` not firing on events output |
+| **Status** | Open |
+| **Area** | `Chucks_List_Builder.py` — `emit_callout_reminders()` |
+| **Symptom** | The `[REMIND]` callout signal appears for bulletins but not for the events pipeline. Operator has no visual signal to review or override the default callout text when compiling events. Needs verification (`##double check##`). |
+| **Cause / Fix** | `emit_callout_reminders()` may not be called (or may short-circuit) for the events branch. Verify the orchestrator calls the reminder for both pipelines and that `compile_events.py` respects `--callout` / `--bottom-callout` in all code paths. |
+
+### BUG-026
+| Field | Value |
+|---|---|
+| **ID** | BUG-026 |
+| **Title** | Inverted Markdown link syntax `()[]` not auto-corrected |
+| **Status** | Open |
+| **Area** | `preprocess_bulletin_text.py`, `preprocess_events_text.py` |
+| **Symptom** | Operators occasionally enter links in the flipped form `(url)[Label]` instead of the correct `[Label](url)`. The compiler emits a validation `[ERROR]` but takes no corrective action, leaving the link broken in output HTML. |
+| **Cause / Fix** | Preprocessors validate but do not auto-fix known transposition patterns. Add an auto-correct pass before validation: detect `\(([^)]+)\)\[([^\]]+)\]` and rewrite to `[\2](\1)`. Emit a `[WARN AUTO-FIX]` log line per correction so the operator is informed. This is a clear, unambiguous flip with no false-positive risk. |
+
+### BUG-027
+| Field | Value |
+|---|---|
+| **ID** | BUG-027 |
+| **Title** | "Hosts with Multiple Events" grouping renders each event as an independent item |
+| **Status** | Open |
+| **Area** | `compile_events.py` |
+| **Symptom** | When a host has multiple events, each row renders as a standalone item under the section rather than being visually grouped under a shared host heading. The section heading exists but sub-grouping by host is absent, making the layout difficult to scan. Related to BUG-020. |
+| **Cause / Fix** | No host-level sub-grouping in current compiler. Proposed approach: add a script-level tagging pass in the preprocessor that detects rows sharing the same host name (or lead image) and stamps them with a shared `HostGroup` tag. Compiler then renders a host-level `<h3>` heading followed by indented entries for each group. Operator notes that host identification may rely on keywords already present in event titles — design to be finalized. |
+
+### BUG-028
+| Field | Value |
+|---|---|
+| **ID** | BUG-028 |
+| **Title** | Multi-image `[WARN]` fires incorrectly — pipe delimiter is valid syntax |
+| **Status** | Open |
+| **Area** | `compile_bulletin.py`, `compile_events.py` — `build_image_html()` |
+| **Symptom** | When an item contains a pipe-delimited image list (e.g., `Images/a.jpg\|Images/b.jpg\|Images/c.jpg`), a `[WARN]` is emitted suggesting an error condition. The pipe is intentional syntax indicating multiple images; the warning is misleading noise in the build log. |
+| **Cause / Fix** | Remove or reclassify the warning in `build_image_html()`. If a maximum image count per item is desired, document it explicitly and only warn above that threshold with a clearer message. Note: BUG-006's resolved entry references this `[WARN]` — it was correct for the original single-string bug but is now outdated behavior. |
+
+### BUG-029
+| Field | Value |
+|---|---|
+| **ID** | BUG-029 |
+| **Title** | Callout message requires two trailing newlines for single-line intent |
+| **Status** | Open |
+| **Area** | `compile_bulletin.py`, `compile_events.py` — callout block renderer |
+| **Symptom** | The callout block requires two `\n` characters at the end of the message to render as a clean single-line callout. Operators entering natural single-line text get malformed spacing in HTML output. |
+| **Cause / Fix** | Callout renderer likely emits an extra blank line unconditionally. Fix: strip trailing whitespace/newlines from callout text in the renderer before wrapping in HTML so operators can enter clean single-line text without workarounds. |
+
+### BUG-030
+| Field | Value |
+|---|---|
+| **ID** | BUG-030 |
+| **Title** | VS Code opens application rather than specific output files |
+| **Status** | Open |
+| **Area** | `Chucks_List_Builder.py` — post-build file-open logic |
+| **Symptom** | After a successful build, the orchestrator launches VS Code (the application) but does not pass the output files as arguments. Operator must manually navigate to and open the compiled HTML files. |
+| **Cause / Fix** | The `code` CLI call is missing file path arguments. Fix: pass specific output file paths to `subprocess.run(["code", str(output_file_1), str(output_file_2), ...])` so VS Code opens directly to the compiled files on build completion. |
+
+### BUG-031
+| Field | Value |
+|---|---|
+| **ID** | BUG-031 |
+| **Title** | Final output files duplicated outside staging folder |
+| **Status** | Open |
+| **Area** | `compile_bulletin.py`, `compile_events.py` |
+| **Symptom** | When final HTML files are written, duplicate copies are created outside the intended staging folder. Expected sole destination: `C:\Users\Travis\Desktop\ChucksList\ChucksList_Builder\Chucks*`. Extra copies create ambiguity about which file is authoritative for Zoho upload. Related to BUG-017. |
+| **Cause / Fix** | Output path logic writes to multiple destinations. Fix: audit all `open(..., "w")` calls in both compilers and consolidate to the `Chucks*` staging path only. Cross-reference with BUG-017 fix to avoid reintroducing the nested-directory issue. |
+
+### BUG-032
+| Field | Value |
+|---|---|
+| **ID** | BUG-032 |
+| **Title** | TOC group headers not visually distinct; items not indented under group |
+| **Status** | Open |
+| **Area** | `compile_bulletin.py`, `compile_events.py` — TOC renderer |
+| **Symptom** | TOC section group headings and their child item links render at the same visual level. Groups are not styled as prominent headers with items indented beneath them, making the TOC difficult to scan. A "New" prefix on first-appearance entries would also help readers identify fresh content. |
+| **Cause / Fix** | TOC HTML uses a flat list structure. Fix: (1) render each group as a styled `<strong>` or `<h4>` TOC header; (2) indent child item links under their group via `margin-left` or a nested `<ul>`; (3) prepend "New" to TOC entries for first-appearance items (coordinate with BUG-022 when available; a placeholder hook is acceptable in the interim). |
+
+### BUG-033
+| Field | Value |
+|---|---|
+| **ID** | BUG-033 |
+| **Title** | Inline formatting stripped from entries even when source cell is styled |
+| **Status** | Open |
+| **Area** | `preprocess_bulletin_text.py`, `preprocess_events_text.py` — CSV ingestion |
+| **Symptom** | Rich text formatting (bold, italic, centering) applied to source cells in LibreOffice/Google Sheets is not preserved in compiled HTML output. CSV is a plain-text format — cell styling metadata is never written to `.csv` and cannot be recovered at compile time. |
+| **Cause / Fix** | Short-term: document the limitation; encourage operators to use inline Markdown (`**bold**`, `_italic_`, `<center>...</center>`) in cell text rather than spreadsheet cell formatting. Long-term: a database + cron job + direct email-to-database ingestion pipeline would capture structured input without CSV formatting loss — Phase 3 architectural item, tracked alongside the database migration. |
 
 ---
 
