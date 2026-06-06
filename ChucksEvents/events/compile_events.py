@@ -1046,6 +1046,34 @@ def build_full_html(
 
 
 # ---------------------------------------------------------------------------
+# Entry row renderer
+# ---------------------------------------------------------------------------
+
+def render_entry_row(
+    title: str,
+    body_html: str,
+    image_html: str,
+    row_class: str,
+    item_anchor: str,
+) -> str:
+    """
+    Render a single event entry as an HTML table row.
+    """
+    return f"""
+            <tr class="{row_class}">
+              <td class="mobile-pad" style="padding:18px 28px;">
+                <div class="section-title" id="{item_anchor}">
+                  {html.escape(title)}
+                </div>
+                <div class="body-copy">
+                  {body_html}
+                </div>
+                {image_html}
+              </td>
+            </tr>""".rstrip()
+
+
+# ---------------------------------------------------------------------------
 # Compile entrypoint
 # ---------------------------------------------------------------------------
 
@@ -1091,10 +1119,10 @@ def compile_events(
     section_blocks: list[str] = []
     alternating_index = 0
 
-        for section_name, items in grouped_sections:
+    for section_name, items in grouped_sections:
         section_blocks.append(
             f"""
-            <tr id="{SECTION_ANCHORS[section_name]}">
+            <tr id="{SECTION_ID_MAP[section_name]}">
               <td class="section-label mobile-pad" style="padding:10px 28px;">
                 {html.escape(section_name)}
               </td>
@@ -1136,15 +1164,15 @@ def compile_events(
         issue_date=issue_date,
         toc_html=toc_html,
         section_blocks=section_blocks,
-        top_callout=top_callout or DEFAULT_TOP_CALLOUT,
+        top_callout=callout or DEFAULT_TOP_CALLOUT,
         bottom_callout=bottom_callout or DEFAULT_BOTTOM_CALLOUT,
     )
 
-    final_output = PROJ_DIR / "chucks_bulletin_final_output.html"
+    final_output = PROJ_DIR / "chucks_events_final_output.html"
 
     try:
         final_output.write_text(full_html, encoding="utf-8")
-        print(f"  [OK] Bulletin HTML written: {final_output}")
+        print(f"  [OK] Events HTML written: {final_output}")
     except Exception as exc:
         print(f"ERROR writing output: {exc}", file=sys.stderr)
         return 1

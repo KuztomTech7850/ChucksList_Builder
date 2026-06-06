@@ -1052,46 +1052,46 @@ def compile_bulletin(
     section_blocks: list[str] = []
     alternating_index = 0
 
-        for section_name, items in grouped_sections:
+    for section_name, items in grouped_sections:
+      section_blocks.append(
+        f"""
+        <tr id="{SECTION_ANCHORS[section_name]}">
+          <td class="section-label mobile-pad" style="padding:10px 28px;">
+          {html.escape(section_name)}
+          </td>
+        </tr>
+        """.rstrip()
+      )
+
+      for row_num, row in items:
+        title    = (row.get("Title") or "").strip()
+        body_raw = (row.get("Body")  or "").strip()
+        image    = (row.get("Image") or "").strip()
+
+        if not title:
+          print(
+            f"  [WARN] Row {row_num}: field 'Title' is empty. "
+            "Fix: enter a title. Item skipped.",
+            file=sys.stderr,
+          )
+          continue
+
+        row_class = "row-white" if alternating_index % 2 == 0 else "row-alt"
+        alternating_index += 1
+
+        body_html  = render_body(body_raw)
+        image_html = build_image_html(image, title)
+        item_anchor = item_anchor_map.get((section_name, row_num), "")
+
         section_blocks.append(
-            f"""
-            <tr id="{SECTION_ANCHORS[section_name]}">
-              <td class="section-label mobile-pad" style="padding:10px 28px;">
-                {html.escape(section_name)}
-              </td>
-            </tr>
-            """.rstrip()
-        )
-
-        for row_num, row in items:
-            title    = (row.get("Title") or "").strip()
-            body_raw = (row.get("Body")  or "").strip()
-            image    = (row.get("Image") or "").strip()
-
-            if not title:
-                print(
-                    f"  [WARN] Row {row_num}: field 'Title' is empty. "
-                    "Fix: enter a title. Item skipped.",
-                    file=sys.stderr,
-                )
-                continue
-
-            row_class = "row-white" if alternating_index % 2 == 0 else "row-alt"
-            alternating_index += 1
-
-            body_html  = render_body(body_raw)
-            image_html = build_image_html(image, title)
-            item_anchor = item_anchor_map.get((section_name, row_num), "")
-
-            section_blocks.append(
-                render_entry_row(
-                    title=title,
-                    body_html=body_html,
-                    image_html=image_html,
-                    row_class=row_class,
-                    item_anchor=item_anchor,
-                )
+            render_entry_row(
+                title=title,
+                body_html=body_html,
+                image_html=image_html,
+                row_class=row_class,
+                item_anchor=item_anchor,
             )
+        )
 
     full_html = build_full_html(
         issue_date=issue_date,

@@ -34,12 +34,16 @@ contrast, accessible links — and are safe for upload directly to Zoho Campaign
 
 **Active Goal: Bug Cleanup — stabilizing the pipeline before server migration.**
 
-Current focus:
-- **BUG-023** — Fix log path (writes to wrong folder — one-line fix)
-- **BUG-024** — Fix cross-validation paths (silent false-pass on every build — four-line fix)
-- **BUG-017** — Fix nested staging folder (`ChucksBulletin/ChucksBulletin/`)
+BUG-017, BUG-023, and BUG-024 are resolved and verified on a live run (2026-06-05).
+Pipeline runs clean end-to-end: both Bulletin and Events compile correctly, logs
+land in `System/logs/`, and output files write to the correct staging paths.
 
-Up next: Migrate the pipeline to the cPanel server once the above are resolved.
+Current focus:
+- **BUG-030** — VS Code opens the application instead of the specific output files
+- **BUG-029** — Callout trailing newline forces double `\n` for single-line intent
+- **BUG-025** — `[REMIND]` not firing on events output (verify code path first)
+
+Up next: Migrate the pipeline to the cPanel server once remaining bugs are resolved.
 
 For the full bug ledger and priority sequence: [System/BUG_LIST.md](System/BUG_LIST.md)
 

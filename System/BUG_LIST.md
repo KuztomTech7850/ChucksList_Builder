@@ -10,7 +10,9 @@
 > **Next sequential ID: BUG-026**
 > (BUG-020 through BUG-025 are the last valid entries before a cleanup
 > on 2026-06-05 removed incorrectly created duplicate/overlap bugs.
-> See notes in each affected entry.)
+> See notes in each affected entry.**WAS ADVISED OF THESE NOTES, NO CHANGES MADE:
+> 1. Update the header note — Next ID remains BUG-026, but update the cleanup note date:
+> No change needed there — it's already accurate.**)
 
 ***
 
@@ -29,44 +31,12 @@
 
 ## In Progress
 
-### BUG-017
-| Field | Value |
-|---|---|
-| **ID** | BUG-017 |
-| **Title** | Nested duplicate staging folder created on every build |
-| **Status** | In Progress |
-| **Area** | `compile_bulletin.py`, `compile_events.py` |
-| **Symptom** | Compilers produce `ChucksBulletin/ChucksBulletin/` and `ChucksEvents/ChucksEvents/` as a side effect of `OUTPUT_DIR` path resolution. The staging copy is nested one level too deep and is not found by the Zoho upload workflow. Also causes duplicate output files outside the intended staging folder (see BUG-031 note below). |
-| **Cause / Fix** | `OUTPUT_DIR` was set to `PROJ_DIR / "ChucksBulletin"` inside `compile_bulletin.py`. Since `PROJ_DIR` resolves to `ChucksBulletin/` from inside `ChucksBulletin/bulletins/`, the join creates the nested path. Fix: `OUTPUT_DIR = PROJ_DIR` in both compilers. **Not yet applied.** |
-| **Note** | Fixing this also resolves the duplicate output file issue previously tracked as BUG-031. Audit all `open(..., "w")` calls in both compilers during the fix to confirm consolidation to the correct staging path. |
 
 ***
 
 ## Open — Planned
 
 Priority order: work top to bottom. Do not skip ahead.
-
-### BUG-023
-| Field | Value |
-|---|---|
-| **ID** | BUG-023 |
-| **Title** | Log path hardcoded to `logs/` instead of `System/logs/` |
-| **Status** | Open |
-| **Priority** | 1 — one-line fix, zero risk |
-| **Area** | `Chucks_List_Builder.py` — `setup_logging()` |
-| **Symptom** | When `--log-to-file` is used, the build log is written to `ChucksList_Builder/logs/` (repo root). The operator moved the logs folder to `ChucksList_Builder/System/logs/`. Logs either land in the wrong place or a new `logs/` directory is silently created at repo root. |
-| **Cause / Fix** | **Confirmed not yet fixed as of 2026-06-05.** `setup_logging()` hardcodes `logs_dir = PROJ_DIR / "logs"`. Change to `PROJ_DIR / "System" / "logs"`. One-line fix. |
-
-### BUG-024
-| Field | Value |
-|---|---|
-| **ID** | BUG-024 |
-| **Title** | `INTERMEDIATE_CSV` and `OUTPUT_FILES` paths resolve to non-existent repo-root subdirectories |
-| **Status** | Open |
-| **Priority** | 2 — four-line fix, zero risk |
-| **Area** | `Chucks_List_Builder.py` |
-| **Symptom** | On every build, two phantom directories (`ChucksList_Builder/bulletins/` and `ChucksList_Builder/events/`) are created at repo root. The CSV→HTML cross-validation silently finds nothing because `INTERMEDIATE_CSV` and `OUTPUT_FILES` point there instead of to `ChucksBulletin/bulletins/` and `ChucksEvents/events/`. Validation always reports "no data to compare" — a false pass. |
-| **Cause / Fix** | **Confirmed not yet fixed as of 2026-06-05.** `PROJ_DIR` in the entry point resolves to the repo root. `INTERMEDIATE_CSV` and `OUTPUT_FILES` are defined as `PROJ_DIR / "bulletins" / ...` and `PROJ_DIR / "events" / ...`, missing the `ChucksBulletin/` and `ChucksEvents/` parent folders. Fix: change both dicts to `PROJ_DIR / "ChucksBulletin" / "bulletins" / ...` and `PROJ_DIR / "ChucksEvents" / "events" / ...`. Four path corrections. |
 
 ### BUG-030
 | Field | Value |
@@ -342,6 +312,41 @@ Priority order: work top to bottom. Do not skip ahead.
 | **Area** | `Chucks_List_Builder.py` |
 | **Symptom** | File contained a shell command artifact rather than valid Python source. Script failed to execute entirely. |
 | **Cause / Fix** | File replaced with correct Python source. |
+
+### BUG-017
+| Field | Value |
+|---|---|
+| **ID** | BUG-017 |
+| **Title** | Nested duplicate staging folder created on every build |
+| **Status** | Fixed |
+| **Area** | `compile_bulletin.py`, `compile_events.py` |
+| **Symptom** | Compilers produced `ChucksBulletin/ChucksBulletin/` and `ChucksEvents/ChucksEvents/` as a side effect of `OUTPUT_DIR` path resolution. Staging copy nested one level too deep; not found by Zoho upload workflow. Also caused duplicate output files (previously tracked as BUG-031, absorbed here). |
+| **Cause / Fix** | `OUTPUT_DIR` was set to `PROJ_DIR / "ChucksBulletin"` inside `compile_bulletin.py`. Since `PROJ_DIR` resolves to the `ChucksBulletin/` folder from inside `ChucksBulletin/bulletins/`, the join created the nested path. Fix: `OUTPUT_DIR = PROJ_DIR` in both compilers, pointing output directly to the correct staging parent. |
+| **Verified** | 2026-06-05 — both HTML files landed at `ChucksBulletin/chucks_bulletin_final_output.html` and `ChucksEvents/chucks_events_final_output.html` with no nested folders on live run. |
+
+### BUG-023
+| Field | Value |
+|---|---|
+| **ID** | BUG-023 |
+| **Title** | Log path hardcoded to `logs/` instead of `System/logs/` |
+| **Status** | Fixed |
+| **Priority** | 1 |
+| **Area** | `Chucks_List_Builder.py` — `setup_logging()` |
+| **Symptom** | When `--log-to-file` is used, the build log was written to `ChucksList_Builder/logs/` (repo root). The operator moved the logs folder to `ChucksList_Builder/System/logs/`. |
+| **Cause / Fix** | `setup_logging()` hardcoded `logs_dir = PROJ_DIR / "logs"`. Changed to `PROJ_DIR / "System" / "logs"`. One-line fix. |
+| **Verified** | 2026-06-05 — log confirmed at `System/logs/build_2026-06-05_195428.log` on live run. |
+
+### BUG-024
+| Field | Value |
+|---|---|
+| **ID** | BUG-024 |
+| **Title** | `INTERMEDIATE_CSV` and `OUTPUT_FILES` paths resolve to non-existent repo-root subdirectories |
+| **Status** | Fixed |
+| **Priority** | 2 |
+| **Area** | `Chucks_List_Builder.py` |
+| **Symptom** | Phantom directories created at repo root; cross-validation silently found nothing and reported a false pass on every build. |
+| **Cause / Fix** | `INTERMEDIATE_CSV` and `OUTPUT_FILES` were missing the `ChucksBulletin/` and `ChucksEvents/` parent folders. Four path corrections applied. |
+| **Verified** | 2026-06-05 — both output HTML files confirmed at correct paths on live run. |
 
 ***
 
